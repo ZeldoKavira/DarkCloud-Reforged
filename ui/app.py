@@ -51,7 +51,7 @@ class App:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_ui(self):
-        # Header
+        # Header (fixed at top)
         header = ttk.Frame(self.root)
         header.pack(fill=tk.X, padx=10, pady=(10, 5))
         ttk.Label(header, text="Dark Cloud Enhanced", style="Header.TLabel").pack(side=tk.LEFT)
@@ -60,13 +60,47 @@ class App:
         self.status_label = ttk.Label(header, text="Connecting...", style="Status.TLabel")
         self.status_label.pack(side=tk.RIGHT)
 
+        # Scrollable container for everything else
+        container = ttk.Frame(self.root)
+        container.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        canvas = tk.Canvas(container, bg=BG, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient=tk.VERTICAL, command=canvas.yview)
+        self._scroll_frame = ttk.Frame(canvas)
+
+        self._scroll_frame.bind("<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=self._scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Bind mousewheel scrolling
+        def _on_mousewheel(event):
+            if event.num == 4 or event.delta > 0:
+                canvas.yview_scroll(-3, "units")
+            elif event.num == 5 or event.delta < 0:
+                canvas.yview_scroll(3, "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all("<Button-4>", _on_mousewheel)
+        canvas.bind_all("<Button-5>", _on_mousewheel)
+
+        # Make scroll frame expand to canvas width
+        def _on_canvas_resize(event):
+            canvas.itemconfig(canvas.find_all()[0], width=event.width)
+        canvas.bind("<Configure>", _on_canvas_resize)
+
+        sf = self._scroll_frame  # shorthand
+
         # Main content — two columns
-        content = ttk.Frame(self.root)
-        content.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        content = ttk.Frame(sf)
+        content.pack(fill=tk.BOTH, expand=True)
         content.columnconfigure(0, weight=1)
         content.columnconfigure(1, weight=1)
 
-        # Left column — Connection & Game State
+        # Left column
         left = ttk.Frame(content)
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
 
@@ -85,7 +119,7 @@ class App:
             "PNACH", "Mod Flag", "Enhanced Save", "Cheats Used", "Game Beaten",
         ])
 
-        # Right column — Player, Location, Mod Status
+        # Right column
         right = ttk.Frame(content)
         right.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
@@ -106,16 +140,14 @@ class App:
         ])
 
         # Options row
-        opts = ttk.Frame(self.root)
-        opts.pack(fill=tk.X, padx=10, pady=(5, 5))
-        self.opt_panel = self._panel(opts, "PNACH Options")
+        self.opt_panel = self._panel(sf, "PNACH Options")
         self.opt_fields = self._add_fields(self.opt_panel, [
             "Disable Beep", "Disable Battle Music", "Widescreen", "Graphics Enhance",
         ])
 
-        # Log area
+        # Log area (fixed at bottom, outside scroll)
         log_frame = ttk.Frame(self.root)
-        log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        log_frame.pack(fill=tk.BOTH, expand=False, padx=10, pady=(0, 10))
         ttk.Label(log_frame, text="Log", style="Header.TLabel").pack(anchor=tk.W)
         self.log_text = tk.Text(
             log_frame, height=6, bg="#0d1117", fg="#8b949e",
