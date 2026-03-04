@@ -1,4 +1,4 @@
-"""Parses C# source files from the Dark Cloud Enhanced mod and generates
+"""Parses C# source files from the Dark Cloud Reforged mod and generates
 Python data modules. Handles:
 - const int/byte/ushort fields → Python constants
 - static arrays (int[], ushort[], byte[], string[]) → Python lists

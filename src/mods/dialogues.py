@@ -566,7 +566,7 @@ def fix_fairy_king_dialogue(mem):
 def intro_text_at_norune(mem):
     """Write intro cutscene text at Norune."""
     write_dialogue(mem, 0x20370A4E,
-                   "Wait...\u00a4Have you already done^this before?\u00a4Hmm... well,^whatever the case is...\u00a4Prepare for a great journey,^or should I say...\u00a4An Enhanced journey!!")
+                   "Wait...\u00a4Have you already done^this before?\u00a4Hmm... well,^whatever the case is...\u00a4Prepare for a great journey,^or should I say...\u00a4A Reforged journey!!")
 
 
 # ── Collection tracker (Brownboo Pickle) ─────────────────────

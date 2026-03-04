@@ -105,7 +105,7 @@ class ModManager:
                     self._start_mods()
                     self._ingame = True
                 else:
-                    log.warning("Not an Enhanced Mod save file!")
+                    log.warning("Not a Reforged Mod save file!")
                     if self.mem.read_byte(addr.DUNGEON_FLOOR_CHECK) != 255:
                         self.mem.write_int(addr.DUNGEON_DEBUG_MENU, 151)
                     else:

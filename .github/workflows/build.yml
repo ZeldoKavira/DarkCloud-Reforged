@@ -14,11 +14,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact: DarkCloud-Enhanced-Windows
+            artifact: DarkCloud-Reforged-Windows
           - os: macos-latest
-            artifact: DarkCloud-Enhanced-macOS
+            artifact: DarkCloud-Reforged-macOS
           - os: ubuntu-latest
-            artifact: DarkCloud-Enhanced-Linux
+            artifact: DarkCloud-Reforged-Linux
 
     runs-on: ${{ matrix.os }}
 
@@ -43,13 +43,19 @@ jobs:
         run: pip install -r requirements-build.txt
 
       - name: Build executable
-        run: pyinstaller --onefile --name DarkCloud-Enhanced --windowed main.py
+        run: pyinstaller --onefile --name DarkCloud-Reforged --windowed src/main.py
+
+      - name: Zip artifact
+        run: |
+          cd dist
+          zip -r ../${{ matrix.artifact }}-${{ steps.version.outputs.tag }}.zip .
+        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}-${{ steps.version.outputs.tag }}
-          path: dist/
+          path: ${{ matrix.artifact }}-${{ steps.version.outputs.tag }}.zip
 
   release:
     needs: build
@@ -67,7 +73,7 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: artifacts/**/*.zip
           generate_release_notes: true
 
   prerelease:
@@ -90,6 +96,6 @@ jobs:
         with:
           tag_name: dev-${{ github.sha }}
           name: Pre-release ${{ github.sha }}
-          files: artifacts/**/*
+          files: artifacts/**/*.zip
           prerelease: true
           generate_release_notes: true

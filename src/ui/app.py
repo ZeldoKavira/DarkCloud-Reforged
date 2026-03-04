@@ -31,7 +31,7 @@ class App:
         self.manager = ModManager(state.mem, state)
 
         self.root = tk.Tk()
-        self.root.title("Dark Cloud Enhanced — Python Edition")
+        self.root.title("Dark Cloud Reforged")
         self.root.geometry("720x620")
         self.root.configure(bg=BG)
         self.root.resizable(True, True)
@@ -54,7 +54,7 @@ class App:
         # Header (fixed at top)
         header = ttk.Frame(self.root)
         header.pack(fill=tk.X, padx=10, pady=(10, 5))
-        ttk.Label(header, text="Dark Cloud Enhanced", style="Header.TLabel").pack(side=tk.LEFT)
+        ttk.Label(header, text="Dark Cloud Reforged", style="Header.TLabel").pack(side=tk.LEFT)
         self.status_dot = tk.Label(header, text="●", font=("Helvetica", 16), bg=BG, fg=RED)
         self.status_dot.pack(side=tk.RIGHT, padx=5)
         self.status_label = ttk.Label(header, text="Connecting...", style="Status.TLabel")

@@ -1,4 +1,4 @@
-"""Dark Cloud Enhanced Mod - Python Edition
+"""Dark Cloud Reforged
 Entry point. Launches the mod window and connects to PCSX2 via PINE IPC.
 """
 
