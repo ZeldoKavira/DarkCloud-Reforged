@@ -553,3 +553,127 @@ def check_ally_fishing(mem, area, is_using_ally):
     if area == 19:
         for a in _SUBMARINE_ADDRS:
             mem.write_byte(a, 0)
+
+
+# ── Fairy King + Intro text ──────────────────────────────────
+
+def fix_fairy_king_dialogue(mem):
+    """Write custom Fairy King dialogue about ally summoning."""
+    write_dialogue(mem, 0x20425014,
+                   "You can call your allies everywhere^in the world, but however...")
+
+
+def intro_text_at_norune(mem):
+    """Write intro cutscene text at Norune."""
+    write_dialogue(mem, 0x20370A4E,
+                   "Wait...\u00a4Have you already done^this before?\u00a4Hmm... well,^whatever the case is...\u00a4Prepare for a great journey,^or should I say...\u00a4An Enhanced journey!!")
+
+
+# ── Collection tracker (Brownboo Pickle) ─────────────────────
+
+# Items that count toward 100% collection
+_OBTAINABLE_ITEMS = [
+    81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,
+    101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,
+    117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,
+    133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,
+    149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,
+    165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,
+    181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,
+    197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,
+    213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,
+    229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,
+    245,246,247,248,249,250,251,252,253,254,255,256,257,
+]
+_OBTAINABLE_ATTACHMENTS = [81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110]
+_OBTAINABLE_ULT_WEAPONS = [258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280]
+_OBTAINABLE_SECRET_ITEMS = [234,248]
+
+
+def check_items_collection(mem):
+    """Scan inventory/storage/weapons for collection progress.
+
+    Returns (items_count, total_items, ult_count, ult_total, secret_count, secret_total).
+    Used by Brownboo Pickle NPC dialogue.
+    """
+    checklist = [False] * 380
+
+    # Active item slots
+    a = 0x21CDD8AE
+    for _ in range(3):
+        iid = mem.read_short(a)
+        if 0 < iid < 380:
+            checklist[iid] = True
+        a += 2
+
+    # Inventory
+    a = 0x21CDD8BA
+    for _ in range(100):
+        iid = mem.read_short(a)
+        if 0 < iid < 380:
+            checklist[iid] = True
+        a += 2
+
+    # Storage
+    a = 0x21CE21E8
+    for _ in range(60):
+        iid = mem.read_short(a)
+        if 0 < iid < 380:
+            checklist[iid] = True
+        a += 2
+
+    items = sum(1 for i in _OBTAINABLE_ITEMS if checklist[i])
+
+    # Attachments (bag)
+    a = 0x21CE1A48
+    for _ in range(40):
+        iid = mem.read_short(a)
+        if 0 < iid < 380:
+            checklist[iid] = True
+        a += 0x20
+
+    # Attachments (storage)
+    a = 0x21CE3FE8
+    for _ in range(30):
+        iid = mem.read_short(a)
+        if 0 < iid < 380:
+            checklist[iid] = True
+        a += 0x20
+
+    items += sum(1 for i in _OBTAINABLE_ATTACHMENTS if checklist[i])
+    total = len(_OBTAINABLE_ITEMS) + len(_OBTAINABLE_ATTACHMENTS)
+
+    # Weapons (bag + storage)
+    a = 0x21CDDA58
+    for _ in range(65):
+        iid = mem.read_short(a)
+        if 0 < iid < 380:
+            checklist[iid] = True
+        a += 0xF8
+    a = 0x21CE22D8
+    for _ in range(30):
+        iid = mem.read_short(a)
+        if 0 < iid < 380:
+            checklist[iid] = True
+        a += 0xF8
+
+    ult = sum(1 for i in _OBTAINABLE_ULT_WEAPONS if checklist[i])
+    secret = sum(1 for i in _OBTAINABLE_SECRET_ITEMS if checklist[i])
+
+    return (items, total, ult, len(_OBTAINABLE_ULT_WEAPONS),
+            secret, len(_OBTAINABLE_SECRET_ITEMS))
+
+
+def check_master_fish_quest_reward(mem):
+    """Check if player already has Saving Book (191) in inventory or storage."""
+    a = 0x21CDD8BA
+    for _ in range(100):
+        if mem.read_short(a) == 191:
+            return True
+        a += 2
+    a = 0x21CE21E8
+    for _ in range(60):
+        if mem.read_short(a) == 191:
+            return True
+        a += 2
+    return False

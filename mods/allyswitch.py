@@ -309,3 +309,24 @@ def demon_shaft_unlock_check(mem, unlocked_flag):
         if mem.read_byte(0x21CE448B) == 0:
             mem.write_byte(0x21CE70A0, 0)
     return False
+
+
+def check_credits_scene(mem, player_at_credits):
+    """Detect credits scene, set game-cleared flag, fix save menu.
+
+    Returns updated player_at_credits flag.
+    """
+    area = mem.read_int(0x202A2518)
+    if area == -1 and not player_at_credits:
+        # Entered credits
+        mem.write_byte(0x21CE448B, 1)  # game cleared flag
+        if mem.read_byte(0x21CE70A0) == 0:
+            mem.write_byte(0x21CE70A0, 1)  # demon shaft visit count
+        log.info("Game beaten, entered credits!")
+        return True
+    elif area != 51 and player_at_credits:
+        mem.write_int(0x202A2518, 60)
+        if mem.read_byte(0x21DA8AD0) == 2 and mem.read_byte(0x21DA8AE3) < 255:
+            mem.write_byte(0x21DA8AD0, 1)  # fix save menu
+            return False
+    return player_at_credits

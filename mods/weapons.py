@@ -135,7 +135,7 @@ class SynthSphereMod(ModBase):
                 time.sleep(0.1)
                 continue
             self._check_synth()
-            time.sleep(0.001)
+            time.sleep(0.064)  # 64ms — matches C# WeaponListenForSynthSphere
 
     def _in_customize_menu(self):
         try:

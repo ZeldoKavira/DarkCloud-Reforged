@@ -159,7 +159,7 @@ class TownMod(ModBase):
             elif self.fishing_state and self.fishing_state.initialized:
                 self.fishing_state.initialized = False
 
-            time.sleep(0.001)
+            time.sleep(0.05)  # 50ms — matches C# TownCharacter.MainScript
 
     def _apply_patches(self):
         """One-time QoL patches from TownCharacter.MainScript()."""
