@@ -2,6 +2,34 @@
 
 A cross-platform rewrite of the [Dark Cloud Enhanced Mod](https://github.com/Gundorada-Workshop/DarkCloud-Enhanced), originally built in C# with direct Windows process memory access. This version uses **PINE IPC** to communicate with PCSX2, making it compatible with modern PCSX2 builds (v1.7+ and Nightly) on **Windows, Linux, and macOS** — including Steam Deck.
 
+## Steam Deck — One-Line Install
+
+Open a terminal (Desktop Mode → Konsole) and run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZeldoKavira/DarkCloud-Enhanced-Python/main/scripts/steamdeck-setup.sh | bash
+```
+
+This will:
+1. Download PCSX2 and the latest mod build
+2. Prompt you to place your `Dark Cloud (USA).iso` in `~/.dark-cloud-enhanced/`
+3. Install the required PNACH and game settings files
+4. Prompt you to place your PS2 BIOS in `~/.config/PCSX2/bios/`
+5. Launch the mod and PCSX2
+
+The script auto-updates itself and the mod on every run.
+
+### Adding to your Steam Library
+
+After the first run, a shortcut is automatically created. To add it to your library:
+
+1. In Desktop Mode, open Steam
+2. Click **Add a Game** (bottom-left) → **Add a Non-Steam Game**
+3. Check **Dark Cloud Enhanced** from the list
+4. Click **Add Selected Programs**
+
+It will now appear in your library and work in Gaming Mode.
+
 ## What changed from the original
 
 The original mod required Windows and used `ReadProcessMemory`/`WriteProcessMemory` to manipulate the emulator's address space directly. This approach broke with newer PCSX2 versions and couldn't run on Linux or macOS.

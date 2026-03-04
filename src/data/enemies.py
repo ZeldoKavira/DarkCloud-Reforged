@@ -1,4 +1,4 @@
-"""Auto-generated from Enemies.cs — do not edit manually."""
+"""Enemy address offsets and type IDs."""
 
 offset = 0x190
 tableOffset = 0x9C

@@ -1,4 +1,4 @@
-"""Auto-generated from RubyOrbs.cs — do not edit manually."""
+"""Ruby orb element data."""
 
 offset = 4
 

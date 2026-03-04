@@ -1,6 +1,4 @@
-"""Auto-generated from Weapons.cs — do not edit manually.
-
-Weapon database table addresses in game memory. These are the base stat table
+"""Weapon database table addresses in game memory. These are the base stat table
 addresses for the Dagger (Toan's first weapon). Other weapons are at:
     addr + weaponoffset * (weapon_item_id - character_base_weapon_id)
 Other characters use character offsets added to the base address.

@@ -1,4 +1,4 @@
-"""Auto-generated from MiniBoss.cs — do not edit manually."""
+"""Mini-boss spawn data."""
 
 enemyZeroWidth = 0x21E18530
 enemyZeroHeight = 0x21E18534

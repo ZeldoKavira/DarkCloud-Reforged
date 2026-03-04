@@ -1,4 +1,4 @@
-"""Auto-generated from CustomChests.cs — do not edit manually."""
+"""Chest and clown loot tables per dungeon."""
 
 dbcFirstHalfItems = [
     145, 146, 147, 148, 148, 155, 149, 159, 181, 178,

@@ -1,4 +1,4 @@
-"""Auto-generated from SideQuestManager.cs — do not edit manually."""
+"""Side quest definitions and dungeon enemy lists."""
 
 dungeonNames = ["Divine Beast Cave", "Wise Owl Forest", "Shipwreck", "Sun & Moon Temple", "Moon Sea", "Gallery of Time", "Demon Shaft"]
 DBCEnemies = ["Master Jackets", "Dashers", "Mimics", "Dragons"]

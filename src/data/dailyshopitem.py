@@ -1,4 +1,4 @@
-"""Auto-generated from DailyShopItem.cs — do not edit manually."""
+"""Daily shop item rotation tables."""
 
 gems = [
     Items.garnet, Items.amethyst, Items.aquamarine, Items.diamond, Items.emerald, Items.pearl, Items.ruby, Items.peridot, Items.sapphire, Items.opal,

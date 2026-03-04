@@ -1,4 +1,4 @@
-"""Auto-generated from Items.cs — do not edit manually."""
+"""Item ID constants."""
 
 fire = 81
 ice = 82

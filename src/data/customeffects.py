@@ -1,4 +1,4 @@
-"""Auto-generated from CustomEffects.cs — do not edit manually."""
+"""Custom effect constants."""
 
 mode = Addresses.mode
 attachmentOffset = 0x20

@@ -1,6 +1,4 @@
-"""Auto-generated from Player.cs — do not edit manually.
-
-Character stats and weapon slot addresses for all 6 playable characters.
+"""Character stats and weapon slot addresses for all 6 playable characters.
 Each character has base stats (hp, defense, thirst, etc.) and 10 weapon slots.
 Weapon slots use offset math: slot N = slot 0 + WEAPON_SLOT_OFFSET * N.
 Characters chain: next character's slot 0 = previous character's slot 0 + CHARACTER_OFFSET.
