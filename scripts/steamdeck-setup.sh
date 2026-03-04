@@ -174,7 +174,20 @@ Categories=Game;
 Comment=Dark Cloud Reforged Mod via PCSX2
 EOF
     chmod +x "$DESKTOP_FILE"
-    info "Created Steam shortcut. In Desktop Mode: Steam → Add a Game → Add a Non-Steam Game → check 'Dark Cloud Reforged'."
+    echo ""
+    info "Setup complete! To add Dark Cloud Reforged to your Steam library:"
+    echo "  1. Open Steam in Desktop Mode"
+    echo "  2. Click 'Add a Game' (bottom-left) → 'Add a Non-Steam Game'"
+    echo "  3. Check 'Dark Cloud Reforged' from the list"
+    echo "  4. Click 'Add Selected Programs'"
+    echo ""
+    echo "It will then appear in your library and work in Gaming Mode."
+    echo ""
+    read -rp "Would you like to launch the game now? [y/N] " LAUNCH </dev/tty
+    if [[ ! "$LAUNCH" =~ ^[Yy]$ ]]; then
+        info "Done! Launch Dark Cloud Reforged from Steam whenever you're ready."
+        exit 0
+    fi
 else
     info "Steam shortcut already exists."
 fi

@@ -19,6 +19,10 @@ This will:
 
 The script auto-updates itself and the mod on every run.
 
+### Graphics Settings
+
+The installer applies default PCSX2 graphics settings optimized for Steam Deck. You can change these at any time by opening PCSX2 directly and adjusting settings under Graphics — your changes will persist across future launches.
+
 ### Adding to your Steam Library
 
 After the first run, a shortcut is automatically created. To add it to your library:
@@ -29,6 +33,10 @@ After the first run, a shortcut is automatically created. To add it to your libr
 4. Click **Add Selected Programs**
 
 It will now appear in your library and work in Gaming Mode.
+
+### Mod Settings in Gaming Mode
+
+While playing, press the **Steam button** and select **Switch Windows** at the bottom of the menu to access the mod settings window.
 
 ## What changed from the original
 
