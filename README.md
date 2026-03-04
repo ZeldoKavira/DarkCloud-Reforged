@@ -7,7 +7,7 @@ A cross-platform rewrite of the [Dark Cloud Enhanced Mod](https://github.com/Gun
 Open a terminal (Desktop Mode → Konsole) and run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ZeldoKavira/DarkCloud-Enhanced-Python/main/scripts/steamdeck-setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ZeldoKavira/DarkCloud-Reforged/main/scripts/steamdeck-setup.sh | bash
 ```
 
 This will:
