@@ -1,11 +1,13 @@
 """PINE IPC client for PCSX2.
 Implements the PINE protocol over TCP (Windows) or Unix sockets (macOS/Linux).
+Supports batched commands to reduce round-trips.
 """
 
 import os
 import socket
 import struct
 import sys
+import threading
 
 # Opcodes
 MSG_READ8 = 0x00
@@ -26,6 +28,12 @@ IPC_FAIL = 0xFF
 
 PINE_PORT = 28011
 
+# Response sizes per opcode (excluding the status byte)
+_RESP_SIZES = {
+    MSG_READ8: 1, MSG_READ16: 2, MSG_READ32: 4, MSG_READ64: 8,
+    MSG_WRITE8: 0, MSG_WRITE16: 0, MSG_WRITE32: 0, MSG_WRITE64: 0,
+}
+
 
 class PineError(Exception):
     pass
@@ -35,6 +43,7 @@ class PineIPC:
     def __init__(self, port=PINE_PORT):
         self.port = port
         self.sock = None
+        self._lock = threading.Lock()
 
     @property
     def connected(self):
@@ -42,53 +51,67 @@ class PineIPC:
 
     def connect(self):
         """Attempt to connect to PCSX2's PINE socket. Returns True on success."""
-        try:
-            if sys.platform == "win32":
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(2)
-                s.connect(("127.0.0.1", self.port))
-            else:
-                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                s.settimeout(2)
-                if sys.platform == "darwin":
-                    runtime = os.environ.get("TMPDIR", "/tmp")
+        with self._lock:
+            if self.sock is not None:
+                return True
+            try:
+                if sys.platform == "win32":
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(2)
+                    s.connect(("127.0.0.1", self.port))
                 else:
-                    runtime = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
-                sock_path = os.path.join(runtime, "pcsx2.sock")
-                s.connect(sock_path)
-            self.sock = s
-            return True
-        except (OSError, socket.error):
-            self.sock = None
-            return False
+                    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    s.settimeout(2)
+                    if sys.platform == "darwin":
+                        runtime = os.environ.get("TMPDIR", "/tmp")
+                    else:
+                        runtime = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+                    sock_path = os.path.join(runtime, "pcsx2.sock")
+                    s.connect(sock_path)
+                # Set recv timeout after connect so reads don't hang forever
+                s.settimeout(5)
+                self.sock = s
+                return True
+            except (OSError, socket.error):
+                self.sock = None
+                return False
 
     def disconnect(self):
-        if self.sock:
-            try:
-                self.sock.close()
-            except OSError:
-                pass
-            self.sock = None
+        with self._lock:
+            if self.sock:
+                try:
+                    self.sock.close()
+                except OSError:
+                    pass
+                self.sock = None
 
     def _recv_exact(self, n):
+        """Must be called while holding self._lock."""
+        s = self.sock
+        if not s:
+            raise ConnectionError("Not connected")
         data = b""
         while len(data) < n:
-            chunk = self.sock.recv(n - len(data))
+            chunk = s.recv(n - len(data))
             if not chunk:
                 raise ConnectionError("Socket closed")
             data += chunk
         return data
 
     def _send_recv(self, payload):
-        """Send IPC message, receive and validate reply. Returns body after size header."""
-        msg = struct.pack("<I", len(payload) + 4) + payload
-        self.sock.sendall(msg)
-        header = self._recv_exact(4)
-        total = struct.unpack("<I", header)[0]
-        body = self._recv_exact(total - 4)
-        if body[0] == IPC_FAIL:
-            raise PineError("IPC command failed")
-        return body
+        """Send IPC message, receive and validate reply. Thread-safe."""
+        with self._lock:
+            s = self.sock
+            if not s:
+                raise ConnectionError("Not connected")
+            msg = struct.pack("<I", len(payload) + 4) + payload
+            s.sendall(msg)
+            header = self._recv_exact(4)
+            total = struct.unpack("<I", header)[0]
+            body = self._recv_exact(total - 4)
+            if body[0] == IPC_FAIL:
+                raise PineError("IPC command failed")
+            return body
 
     # --- Read operations ---
 
@@ -121,6 +144,59 @@ class PineIPC:
 
     def write64(self, addr, val):
         self._send_recv(struct.pack("<BIQ", MSG_WRITE64, addr, val & 0xFFFFFFFFFFFFFFFF))
+
+    # --- Batch operations ---
+
+    def batch(self, commands):
+        """Send multiple commands in one IPC message.
+
+        commands: list of (opcode, addr, [value]) tuples
+        Returns list of results (read values or None for writes).
+        """
+        payload = b""
+        for cmd in commands:
+            op = cmd[0]
+            addr = cmd[1]
+            if op == MSG_READ8:
+                payload += struct.pack("<BI", op, addr)
+            elif op == MSG_READ16:
+                payload += struct.pack("<BI", op, addr)
+            elif op == MSG_READ32:
+                payload += struct.pack("<BI", op, addr)
+            elif op == MSG_READ64:
+                payload += struct.pack("<BI", op, addr)
+            elif op == MSG_WRITE8:
+                payload += struct.pack("<BIB", op, addr, cmd[2] & 0xFF)
+            elif op == MSG_WRITE16:
+                payload += struct.pack("<BIH", op, addr, cmd[2] & 0xFFFF)
+            elif op == MSG_WRITE32:
+                payload += struct.pack("<BII", op, addr, cmd[2] & 0xFFFFFFFF)
+            elif op == MSG_WRITE64:
+                payload += struct.pack("<BIQ", op, addr, cmd[2] & 0xFFFFFFFFFFFFFFFF)
+
+        resp = self._send_recv(payload)
+        # Parse results
+        results = []
+        off = 0
+        for cmd in commands:
+            op = cmd[0]
+            status = resp[off]; off += 1
+            if status == IPC_FAIL:
+                results.append(None)
+                continue
+            sz = _RESP_SIZES.get(op, 0)
+            if sz == 0:
+                results.append(None)
+            elif sz == 1:
+                results.append(resp[off])
+            elif sz == 2:
+                results.append(struct.unpack("<H", resp[off:off+2])[0])
+            elif sz == 4:
+                results.append(struct.unpack("<I", resp[off:off+4])[0])
+            elif sz == 8:
+                results.append(struct.unpack("<Q", resp[off:off+8])[0])
+            off += sz
+        return results
 
     # --- Info operations ---
 
