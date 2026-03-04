@@ -11,6 +11,8 @@ from ui.app import App
 
 
 def main():
+    import signal
+
     from mods.ruby_tex import load_textures
     load_textures()
 
@@ -19,6 +21,12 @@ def main():
     state = GameState(mem)
 
     app = App(state)
+
+    def _quit(*args):
+        app._on_close()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, _quit)
     app.run()
 
 

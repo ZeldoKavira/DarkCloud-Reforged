@@ -64,6 +64,12 @@ class ModManager:
         if self._thread:
             self._thread.join(timeout=3)
 
+    def stop_nowait(self):
+        """Signal all threads to stop without waiting."""
+        self._running = False
+        for mod in self.all_mods:
+            mod._running = False
+
     def _main_loop(self):
         """Main mod loop — mirrors MainMenuThread.CheckEmulatorAndGame + TitleMenu."""
         log.info("Mod manager started")
@@ -159,6 +165,9 @@ class ModManager:
             self.mem.write_short(addr.MUSIC_VOLUME_ADDR, 0)
         else:
             self.mem.write_short(addr.MUSIC_VOLUME_ADDR, addr.MUSIC_VOLUME_DEFAULT)
+        # Instant fishing — default ON for new saves
+        if self.mem.read_byte(addr.OPTION_SAVE_INSTANT_FISH) == 0:
+            self.mem.write_byte(addr.OPTION_SAVE_INSTANT_FISH, 1)
 
     def _stop_mods(self):
         for mod in self.all_mods:

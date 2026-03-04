@@ -144,6 +144,7 @@ class App:
         self.opt_checks = self._add_checkboxes(self.opt_panel, [
             "Disable Beep", "Disable Battle Music", "Widescreen",
             "Graphics Enhance", "Disable Attack Sounds", "Mute All Music",
+            "Instant Fishing",
         ])
 
         # Log area (fixed at bottom, outside scroll)
@@ -225,6 +226,8 @@ class App:
                 mem.write_byte(addr.OPTION_BATTLE_MUSIC, 1)
                 mem.write_byte(addr.OPTION_SAVE_BATTLE_MUSIC, 1)
                 self.opt_checks["Disable Battle Music"][0].set(True)
+        elif label == "Instant Fishing":
+            mem.write_byte(addr.OPTION_SAVE_INSTANT_FISH, val)
 
     def _on_state_update(self, snap: GameSnapshot):
         """Called from poll thread — schedule UI update on main thread."""
@@ -341,7 +344,7 @@ class App:
             self.opt_checks[key][0].set(val)
 
     def _on_close(self):
-        self.manager.stop()
+        self.manager.stop_nowait()
         self.state.mem.disconnect()
         self.root.destroy()
 

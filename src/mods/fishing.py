@@ -8,6 +8,7 @@ collapses it into a data-driven approach.
 import logging
 import math
 import time
+from game import addresses as addr
 
 log = logging.getLogger(__name__)
 
@@ -49,10 +50,52 @@ FISH_STRIDE = 0x2410
 CATCH_CHECK = 0x202A26E8  # == 12 when fish is being reeled in
 FISH_FLAG_BASE = 0x21CE4439
 
+# Fish AI object offsets (from Step__5CFishFv)
+_AI_STATE = 0x50       # piVar6[0x14] — fish behavior state
+_AI_MOVE_MODE = 0x4C   # piVar6[0x13] — 0=idle, 1=swim, 2=fast swim
+_AI_TIMER1 = 0x54      # piVar6[0x15] — direction change timer
+_AI_TIMER2 = 0x58      # piVar6[0x16] — state transition timer
+_AI_BAIT_IDX = 0x88    # bait type index, <0 means fish ignores bait
+_FISH_PTR = 0x202A2B58 # global Fish pointer
+_FISH_AI_COUNT = 6     # max fish AI objects
+
 
 def fish_acquired_flag(mem, fish_id):
     """Set the caught-fish flag for collection tracking."""
     mem.write_byte(FISH_FLAG_BASE + fish_id, 1)
+
+
+def _read_state(mem, addr):
+    """Read fish AI state as signed int32."""
+    v = mem.read_int(addr)
+    return v if v < 0x80000000 else v - 0x100000000
+
+
+def instant_bite_tick(mem):
+    """Speed up fishing: rush idle fish, but once one is pursuing only help that one."""
+    fish_base = mem.read_int(_FISH_PTR)
+    if fish_base == 0:
+        return
+    # First pass: help any fish already pursuing
+    for i in range(_FISH_AI_COUNT):
+        obj = fish_base + i * FISH_STRIDE
+        state = _read_state(mem, obj + _AI_STATE)
+        if state in (6, 7):
+            # Skip distance check — jump straight to biting
+            log.info("Forcing fish %d to bite", i)
+            mem.write_int(obj + _AI_STATE, 8)
+            mem.write_int(obj + _AI_TIMER2, 0x7FFFFFFF)
+            return
+        if state == 8:
+            # Biting — give infinite time to react
+            mem.write_int(obj + _AI_TIMER2, 0x7FFFFFFF)
+            return
+    # No fish pursuing — rush all idle fish
+    for i in range(_FISH_AI_COUNT):
+        obj = fish_base + i * FISH_STRIDE
+        if _read_state(mem, obj + _AI_STATE) == -1:
+            mem.write_int(obj + _AI_TIMER1, 0)
+            mem.write_int(obj + _AI_TIMER2, 0)
 
 
 class FishingState:
@@ -116,6 +159,13 @@ class FishingState:
         """Check for caught fish and update quest progress. Call every tick while fishing."""
         if not self.initialized or not self.cfg:
             return
+
+        # Speed up fish AI if instant fishing is enabled
+        try:
+            if mem.read_byte(addr.OPTION_SAVE_INSTANT_FISH) == 1:
+                instant_bite_tick(mem)
+        except Exception:
+            pass
 
         c = self.cfg
         a = c['fish_base']
