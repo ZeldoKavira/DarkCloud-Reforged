@@ -5,11 +5,14 @@ Ruby changes her weapon element, so her model colour matches.
 """
 
 import logging
+import sys
 from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-_TEX_DIR = Path(__file__).parent.parent / "resources" / "ruby_tex"
+# PyInstaller extracts bundled data to sys._MEIPASS; fall back to source tree
+_BASE = Path(getattr(sys, '_MEIPASS', Path(__file__).parent.parent))
+_TEX_DIR = _BASE / "resources" / "ruby_tex"
 _ELEMENT_FILES = {0: "Fire", 1: "Ice", 2: "Thunder", 3: "Wind", 4: "Holy"}
 _POINTER_ADDR = 0x202A2DDC
 _OFFSET = 0x20000000

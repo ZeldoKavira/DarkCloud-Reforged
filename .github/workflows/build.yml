@@ -43,7 +43,11 @@ jobs:
         run: pip install -r requirements-build.txt
 
       - name: Build executable
-        run: pyinstaller --onefile --name DarkCloud-Reforged --windowed src/main.py
+        run: >
+          pyinstaller --onefile --name DarkCloud-Reforged --windowed
+          --add-data "src/resources/ruby_tex:resources/ruby_tex"
+          src/main.py
+        shell: bash
 
       - name: Zip artifact (Windows)
         if: runner.os == 'Windows'

@@ -45,12 +45,18 @@ fi
 
 # ── 1. Download PCSX2 AppImage ───────────────────────────────────────────────
 PCSX2_BIN="$BASE_DIR/pcsx2.AppImage"
-if [[ ! -f "$PCSX2_BIN" ]]; then
-    info "Downloading PCSX2 v2.6.3..."
+PCSX2_VERSION_FILE="$BASE_DIR/.pcsx2-version"
+INSTALLED_PCSX2=""
+[[ -f "$PCSX2_VERSION_FILE" ]] && INSTALLED_PCSX2=$(cat "$PCSX2_VERSION_FILE")
+
+if [[ "$PCSX2_URL" != "$INSTALLED_PCSX2" ]]; then
+    info "Downloading PCSX2..."
     curl -L -o "$PCSX2_BIN" "$PCSX2_URL"
     chmod +x "$PCSX2_BIN"
+    echo "$PCSX2_URL" > "$PCSX2_VERSION_FILE"
+    info "PCSX2 updated."
 else
-    info "PCSX2 already downloaded."
+    info "PCSX2 is up to date."
 fi
 
 # ── 2. Download latest Linux mod release ─────────────────────────────────────
