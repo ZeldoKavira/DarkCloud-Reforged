@@ -5,7 +5,7 @@ set -euo pipefail
 BASE_DIR="$HOME/.dark-cloud-reforged"
 PCSX2_CONFIG="$HOME/.config/PCSX2"
 PCSX2_URL="https://github.com/PCSX2/pcsx2/releases/download/v2.6.3/pcsx2-v2.6.3-linux-appimage-x64-Qt.AppImage"
-MOD_REPO="ZeldoKavira/DarkCloud-Enhanced-Python"
+MOD_REPO="ZeldoKavira/DarkCloud-Reforged"
 PNACH_NAME="A5C05C78.pnach"
 ISO_NAME="Dark Cloud (USA).iso"
 INI_NAME="SCUS-97111_A5C05C78.ini"
