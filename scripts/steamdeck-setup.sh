@@ -11,6 +11,7 @@ ISO_NAME="Dark Cloud (USA).iso"
 INI_NAME="SCUS-97111_A5C05C78.ini"
 SCRIPT_URL="https://raw.githubusercontent.com/$MOD_REPO/main/scripts/steamdeck-setup.sh"
 LOCAL_SCRIPT="$BASE_DIR/steamdeck-setup.sh"
+VERSION_FILE="$BASE_DIR/.mod-version"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 info()  { echo -e "\e[1;34m[INFO]\e[0m $*"; }
@@ -20,28 +21,26 @@ error() { echo -e "\e[1;31m[ERROR]\e[0m $*"; }
 mkdir -p "$BASE_DIR"
 
 # ── 0. Self-install & self-update ────────────────────────────────────────────
-CURRENT_SCRIPT="${BASH_SOURCE[0]:-}"
-if [[ -z "$CURRENT_SCRIPT" ]] || [[ "$(realpath "$CURRENT_SCRIPT" 2>/dev/null)" != "$(realpath "$LOCAL_SCRIPT" 2>/dev/null)" ]]; then
-    info "Installing script to $LOCAL_SCRIPT..."
-    curl -fsSL -o "$LOCAL_SCRIPT" "$SCRIPT_URL"
-    chmod +x "$LOCAL_SCRIPT"
-    exec "$LOCAL_SCRIPT" "$@"
-fi
-
-info "Checking for script updates..."
-if curl -fsSL -o "$LOCAL_SCRIPT.tmp" "$SCRIPT_URL"; then
+# Always download the latest script from the repo
+if curl -fsSL -o "$LOCAL_SCRIPT.tmp" "$SCRIPT_URL" 2>/dev/null; then
     if ! cmp -s "$LOCAL_SCRIPT.tmp" "$LOCAL_SCRIPT" 2>/dev/null; then
         mv "$LOCAL_SCRIPT.tmp" "$LOCAL_SCRIPT"
         chmod +x "$LOCAL_SCRIPT"
-        info "Script updated, restarting..."
-        exec "$LOCAL_SCRIPT" "$@"
+        info "Script updated."
     else
         rm -f "$LOCAL_SCRIPT.tmp"
-        info "Script is up to date."
     fi
 else
     rm -f "$LOCAL_SCRIPT.tmp"
     warn "Could not check for script updates."
+fi
+
+# If we're not running from the installed location, hand off to it
+CURRENT_SCRIPT="${BASH_SOURCE[0]:-}"
+if [[ -z "$CURRENT_SCRIPT" ]] || [[ "$(realpath "$CURRENT_SCRIPT" 2>/dev/null)" != "$(realpath "$LOCAL_SCRIPT" 2>/dev/null)" ]]; then
+    if [[ -f "$LOCAL_SCRIPT" ]]; then
+        exec bash "$LOCAL_SCRIPT" "$@" </dev/tty
+    fi
 fi
 
 # ── 1. Download PCSX2 AppImage ───────────────────────────────────────────────
@@ -57,30 +56,39 @@ fi
 # ── 2. Download latest Linux mod release ─────────────────────────────────────
 MOD_BIN="$BASE_DIR/DarkCloud-Reforged"
 info "Fetching latest mod release..."
-DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/$MOD_REPO/releases/latest" \
+
+LATEST_URL=$(curl -s "https://api.github.com/repos/$MOD_REPO/releases/latest" \
     | grep -o '"browser_download_url": *"[^"]*Linux[^"]*\.zip"' \
     | head -1 \
     | cut -d'"' -f4 || true)
 
-if [[ -z "$DOWNLOAD_URL" ]]; then
-    DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/$MOD_REPO/releases" \
+if [[ -z "$LATEST_URL" ]]; then
+    LATEST_URL=$(curl -s "https://api.github.com/repos/$MOD_REPO/releases" \
         | grep -o '"browser_download_url": *"[^"]*Linux[^"]*\.zip"' \
         | head -1 \
         | cut -d'"' -f4 || true)
 fi
 
-if [[ -n "$DOWNLOAD_URL" ]]; then
-    info "Downloading $DOWNLOAD_URL"
-    if curl -fL -o "$BASE_DIR/mod.zip" "$DOWNLOAD_URL"; then
-        unzip -o "$BASE_DIR/mod.zip" -d "$BASE_DIR"
-        rm "$BASE_DIR/mod.zip"
-        chmod +x "$MOD_BIN"
-        info "Mod updated."
-    elif [[ -f "$MOD_BIN" ]]; then
-        warn "Download failed, using existing version."
+if [[ -n "$LATEST_URL" ]]; then
+    INSTALLED_URL=""
+    [[ -f "$VERSION_FILE" ]] && INSTALLED_URL=$(cat "$VERSION_FILE")
+
+    if [[ "$LATEST_URL" != "$INSTALLED_URL" ]]; then
+        info "Downloading $LATEST_URL"
+        if curl -fL -o "$BASE_DIR/mod.zip" "$LATEST_URL"; then
+            unzip -o "$BASE_DIR/mod.zip" -d "$BASE_DIR"
+            rm "$BASE_DIR/mod.zip"
+            chmod +x "$MOD_BIN"
+            echo "$LATEST_URL" > "$VERSION_FILE"
+            info "Mod updated."
+        elif [[ -f "$MOD_BIN" ]]; then
+            warn "Download failed, using existing version."
+        else
+            error "Download failed and no existing version found."
+            exit 1
+        fi
     else
-        error "Download failed and no existing version found."
-        exit 1
+        info "Mod is up to date."
     fi
 elif [[ -f "$MOD_BIN" ]]; then
     warn "Could not find a release, using existing version."
@@ -95,7 +103,7 @@ while [[ ! -f "$BASE_DIR/$ISO_NAME" ]]; do
     echo "Please copy your ISO to:"
     echo "  $BASE_DIR/$ISO_NAME"
     echo ""
-    read -rp "Press Enter once you've placed the file..."
+    read -rp "Press Enter once you've placed the file..." </dev/tty
 done
 info "ISO found."
 
@@ -123,7 +131,7 @@ while ! ls "$BIOS_DIR"/*.bin &>/dev/null; do
     echo "Please copy your PS2 BIOS .bin file(s) to:"
     echo "  $BIOS_DIR/"
     echo ""
-    read -rp "Press Enter once you've placed the file..."
+    read -rp "Press Enter once you've placed the file..." </dev/tty
 done
 info "BIOS found."
 
