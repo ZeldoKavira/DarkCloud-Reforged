@@ -19,7 +19,14 @@ error() { echo -e "\e[1;31m[ERROR]\e[0m $*"; }
 
 mkdir -p "$BASE_DIR"
 
-# ── 0. Self-update ───────────────────────────────────────────────────────────
+# ── 0. Self-install & self-update ────────────────────────────────────────────
+if [[ "$(realpath "${BASH_SOURCE[0]}" 2>/dev/null)" != "$(realpath "$LOCAL_SCRIPT" 2>/dev/null)" ]]; then
+    info "Installing script to $LOCAL_SCRIPT..."
+    curl -fsSL -o "$LOCAL_SCRIPT" "$SCRIPT_URL" || cp "${BASH_SOURCE[0]}" "$LOCAL_SCRIPT"
+    chmod +x "$LOCAL_SCRIPT"
+    exec "$LOCAL_SCRIPT" "$@"
+fi
+
 info "Checking for script updates..."
 if curl -fsSL -o "$LOCAL_SCRIPT.tmp" "$SCRIPT_URL"; then
     if ! cmp -s "$LOCAL_SCRIPT.tmp" "$LOCAL_SCRIPT" 2>/dev/null; then
@@ -143,8 +150,8 @@ if [[ ! -f "$DESKTOP_FILE" ]]; then
     cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Name=Dark Cloud Reforged
-Exec=bash -c '"$MOD_BIN" & exec "$PCSX2_BIN" -fullscreen -- "$BASE_DIR/$ISO_NAME"'
-Terminal=false
+Exec=$LOCAL_SCRIPT
+Terminal=true
 Type=Application
 Categories=Game;
 Comment=Dark Cloud Reforged Mod via PCSX2
