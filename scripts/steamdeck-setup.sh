@@ -20,9 +20,10 @@ error() { echo -e "\e[1;31m[ERROR]\e[0m $*"; }
 mkdir -p "$BASE_DIR"
 
 # ── 0. Self-install & self-update ────────────────────────────────────────────
-if [[ "$(realpath "${BASH_SOURCE[0]}" 2>/dev/null)" != "$(realpath "$LOCAL_SCRIPT" 2>/dev/null)" ]]; then
+CURRENT_SCRIPT="${BASH_SOURCE[0]:-}"
+if [[ -z "$CURRENT_SCRIPT" ]] || [[ "$(realpath "$CURRENT_SCRIPT" 2>/dev/null)" != "$(realpath "$LOCAL_SCRIPT" 2>/dev/null)" ]]; then
     info "Installing script to $LOCAL_SCRIPT..."
-    curl -fsSL -o "$LOCAL_SCRIPT" "$SCRIPT_URL" || cp "${BASH_SOURCE[0]}" "$LOCAL_SCRIPT"
+    curl -fsSL -o "$LOCAL_SCRIPT" "$SCRIPT_URL"
     chmod +x "$LOCAL_SCRIPT"
     exec "$LOCAL_SCRIPT" "$@"
 fi
@@ -59,13 +60,13 @@ info "Fetching latest mod release..."
 DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/$MOD_REPO/releases/latest" \
     | grep -o '"browser_download_url": *"[^"]*Linux[^"]*\.zip"' \
     | head -1 \
-    | cut -d'"' -f4)
+    | cut -d'"' -f4 || true)
 
 if [[ -z "$DOWNLOAD_URL" ]]; then
     DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/$MOD_REPO/releases" \
         | grep -o '"browser_download_url": *"[^"]*Linux[^"]*\.zip"' \
         | head -1 \
-        | cut -d'"' -f4)
+        | cut -d'"' -f4 || true)
 fi
 
 if [[ -n "$DOWNLOAD_URL" ]]; then
