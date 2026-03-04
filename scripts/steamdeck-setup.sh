@@ -95,7 +95,7 @@ while [[ ! -f "$BASE_DIR/$ISO_NAME" ]]; do
     echo "Please copy your ISO to:"
     echo "  $BASE_DIR/$ISO_NAME"
     echo ""
-    read -rp "Press Enter once you've placed the file..."
+    read -rp "Press Enter once you've placed the file..." </dev/tty
 done
 info "ISO found."
 
@@ -123,7 +123,7 @@ while ! ls "$BIOS_DIR"/*.bin &>/dev/null; do
     echo "Please copy your PS2 BIOS .bin file(s) to:"
     echo "  $BIOS_DIR/"
     echo ""
-    read -rp "Press Enter once you've placed the file..."
+    read -rp "Press Enter once you've placed the file..." </dev/tty
 done
 info "BIOS found."
 
