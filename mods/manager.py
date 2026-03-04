@@ -17,6 +17,14 @@ from mods.custom_effects import check_chronicle2
 
 log = logging.getLogger(__name__)
 
+# Option: (save_addr, runtime_addr) — None runtime means special handling
+_OPTIONS = [
+    (addr.OPTION_SAVE_GRAPHICS, addr.OPTION_GRAPHICS),
+    (addr.OPTION_SAVE_WIDESCREEN, addr.OPTION_WIDESCREEN),
+    (addr.OPTION_SAVE_BEEP, addr.OPTION_BEEP),
+    (addr.OPTION_SAVE_BATTLE_MUSIC, addr.OPTION_BATTLE_MUSIC),
+]
+
 
 class ModManager:
     """Orchestrates all mod subsystems based on game state."""
@@ -81,10 +89,27 @@ class ModManager:
 
             # Detect entering in-game
             if not self._ingame and game_mode in (addr.Mode.TOWN, addr.Mode.DUNGEON, addr.Mode.CUTSCENE):
-                if snap.flags.enhanced_save or game_mode == addr.Mode.CUTSCENE:
-                    log.info("Entering in-game, starting mod subsystems")
+                if game_mode == addr.Mode.CUTSCENE:
+                    # New game — set enhanced save flag + intro text
+                    time.sleep(0.8)
+                    self.mem.write_byte(addr.ENHANCED_MOD_SAVE_FLAG, 1)
+                    time.sleep(0.2)
+                    from mods.dialogues import intro_text_at_norune
+                    intro_text_at_norune(self.mem)
+                    log.info("New game detected, set enhanced save flag")
                     self._start_mods()
                     self._ingame = True
+                elif snap.flags.enhanced_save:
+                    log.info("Entering in-game, starting mod subsystems")
+                    self._apply_saved_options()
+                    self._start_mods()
+                    self._ingame = True
+                else:
+                    log.warning("Not an Enhanced Mod save file!")
+                    if self.mem.read_byte(addr.DUNGEON_FLOOR_CHECK) != 255:
+                        self.mem.write_int(addr.DUNGEON_DEBUG_MENU, 151)
+                    else:
+                        self.mem.write_byte(addr.MODE, 1)
 
             # Detect returning to main menu
             if self._ingame and game_mode in (addr.Mode.TITLE, addr.Mode.INTRO):
@@ -116,6 +141,24 @@ class ModManager:
         for mod in self.all_mods:
             mod.start()
         self._mods_started = True
+
+    def _apply_saved_options(self):
+        """Copy saved option flags to runtime addresses (C# ModWindowSettingsCheck)."""
+        for save_addr, runtime_addr in _OPTIONS:
+            val = self.mem.read_byte(save_addr)
+            self.mem.write_byte(runtime_addr, 1 if val == 1 else 0)
+        # Attack sounds
+        if self.mem.read_byte(addr.OPTION_SAVE_ATTACK_SOUNDS) == 1:
+            for a in addr.ATTACK_SOUND_ADDRS:
+                self.mem.write_byte(a, 0)
+        else:
+            for i, a in enumerate(addr.ATTACK_SOUND_ADDRS):
+                self.mem.write_byte(a, addr.ATTACK_SOUND_DEFAULTS[i])
+        # Mute music
+        if self.mem.read_byte(addr.OPTION_SAVE_MUTE_MUSIC) == 1:
+            self.mem.write_short(addr.MUSIC_VOLUME_ADDR, 0)
+        else:
+            self.mem.write_short(addr.MUSIC_VOLUME_ADDR, addr.MUSIC_VOLUME_DEFAULT)
 
     def _stop_mods(self):
         for mod in self.all_mods:

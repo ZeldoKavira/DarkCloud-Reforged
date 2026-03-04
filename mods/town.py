@@ -189,6 +189,9 @@ class TownMod(ModBase):
         except Exception:
             pass
 
+        # Initialize character file offset for ally switching
+        self._init_chr_offsets()
+
         self.current_day = 0
         try:
             self.current_day = self.mem.read_short(0x21CD4318)
@@ -203,6 +206,29 @@ class TownMod(ModBase):
         # One-time base shop changes
         from mods.dailyshop import base_shop_changes
         base_shop_changes(self.mem)
+
+    def _init_chr_offsets(self):
+        """Patch game code to redirect character file loading (C# InitializeCharacterOffsetValues).
+        Writes new offset value so the game reads chr paths from our memory location."""
+        # Patch the code offset to point to our config file location
+        self.mem.write_int(addr.CHR_CONFIG_OFFSET, 608545264)
+
+        # Clear config file location (15 bytes)
+        for i in range(15):
+            self.mem.write_byte(addr.CHR_CONFIG_FILE_LOC + i, 0)
+        # Clear chr file secondary area (9 bytes at 0x2029AA18)
+        for i in range(9):
+            self.mem.write_byte(0x2029AA18 + i, 0)
+
+        # Write "info.cfg" to config file location
+        for i, ch in enumerate("info.cfg"):
+            self.mem.write_byte(addr.CHR_CONFIG_FILE_LOC + i, ord(ch))
+
+        # Write default chr path "chara/c01d.chr" to file location
+        for i, ch in enumerate("chara/c01d.chr"):
+            self.mem.write_byte(addr.CHR_FILE_LOC + i, ord(ch))
+
+        log.info("Character file offsets initialized")
 
     def _set_daily_shops(self):
         """Set daily shop rotation items. Ported from DailyShopItem."""
