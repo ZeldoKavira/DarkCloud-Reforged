@@ -139,10 +139,11 @@ class App:
             "Town Thread", "Dungeon Thread", "Weapon Effects", "Shop Prices", "Weapon Balance",
         ])
 
-        # Options row
-        self.opt_panel = self._panel(sf, "PNACH Options")
-        self.opt_fields = self._add_fields(self.opt_panel, [
-            "Disable Beep", "Disable Battle Music", "Widescreen", "Graphics Enhance",
+        # Options row — interactive checkboxes
+        self.opt_panel = self._panel(sf, "Options")
+        self.opt_checks = self._add_checkboxes(self.opt_panel, [
+            "Disable Beep", "Disable Battle Music", "Widescreen",
+            "Graphics Enhance", "Disable Attack Sounds", "Mute All Music",
         ])
 
         # Log area (fixed at bottom, outside scroll)
@@ -179,6 +180,51 @@ class App:
             val.pack(side=tk.LEFT, fill=tk.X, expand=True)
             fields[label] = val
         return fields
+
+    def _add_checkboxes(self, parent, labels):
+        from game import addresses as addr
+        checks = {}
+        for label in labels:
+            var = tk.BooleanVar()
+            cb = tk.Checkbutton(
+                parent, text=label, variable=var, bg=BG_PANEL, fg=FG,
+                selectcolor=ACCENT, activebackground=BG_PANEL, activeforeground=FG,
+                font=("Helvetica", 10), anchor=tk.W, state=tk.DISABLED,
+                disabledforeground=FG_DIM,
+                command=lambda l=label, v=var: self._on_option_toggle(l, v.get()),
+            )
+            cb.pack(fill=tk.X, pady=1)
+            checks[label] = (var, cb)
+        return checks
+
+    def _on_option_toggle(self, label, checked):
+        from game import addresses as addr
+        mem = self.state.mem
+        val = 1 if checked else 0
+        if label == "Disable Beep":
+            mem.write_byte(addr.OPTION_BEEP, val)
+            mem.write_byte(addr.OPTION_SAVE_BEEP, val)
+        elif label == "Disable Battle Music":
+            mem.write_byte(addr.OPTION_BATTLE_MUSIC, val)
+            mem.write_byte(addr.OPTION_SAVE_BATTLE_MUSIC, val)
+        elif label == "Widescreen":
+            mem.write_byte(addr.OPTION_WIDESCREEN, val)
+            mem.write_byte(addr.OPTION_SAVE_WIDESCREEN, val)
+        elif label == "Graphics Enhance":
+            mem.write_byte(addr.OPTION_GRAPHICS, val)
+            mem.write_byte(addr.OPTION_SAVE_GRAPHICS, val)
+        elif label == "Disable Attack Sounds":
+            mem.write_byte(addr.OPTION_SAVE_ATTACK_SOUNDS, val)
+            for i, a in enumerate(addr.ATTACK_SOUND_ADDRS):
+                mem.write_byte(a, 0 if checked else addr.ATTACK_SOUND_DEFAULTS[i])
+        elif label == "Mute All Music":
+            mem.write_byte(addr.OPTION_SAVE_MUTE_MUSIC, val)
+            mem.write_short(addr.MUSIC_VOLUME_ADDR, 0 if checked else addr.MUSIC_VOLUME_DEFAULT)
+            if checked:
+                # Muting all music also forces battle music off (matches C#)
+                mem.write_byte(addr.OPTION_BATTLE_MUSIC, 1)
+                mem.write_byte(addr.OPTION_SAVE_BATTLE_MUSIC, 1)
+                self.opt_checks["Disable Battle Music"][0].set(True)
 
     def _on_state_update(self, snap: GameSnapshot):
         """Called from poll thread — schedule UI update on main thread."""
@@ -266,11 +312,16 @@ class App:
         self._set_active(self.mod_fields, "Shop Prices", ms.shop_applied, is_oneshot=True)
         self._set_active(self.mod_fields, "Weapon Balance", ms.weapon_balance_applied, is_oneshot=True)
 
-        # Options
-        self._set_bool(self.opt_fields, "Disable Beep", snap.flags.option_beep)
-        self._set_bool(self.opt_fields, "Disable Battle Music", snap.flags.option_battle_music)
-        self._set_bool(self.opt_fields, "Widescreen", snap.flags.option_widescreen)
-        self._set_bool(self.opt_fields, "Graphics Enhance", snap.flags.option_graphics)
+        # Options — sync checkboxes from memory (don't trigger callbacks)
+        in_game = snap.game_mode in (2, 3)
+        for _, (_, cb) in self.opt_checks.items():
+            cb.config(state=tk.NORMAL if in_game else tk.DISABLED)
+        self._sync_check("Disable Beep", snap.flags.option_beep)
+        self._sync_check("Disable Battle Music", snap.flags.option_battle_music)
+        self._sync_check("Widescreen", snap.flags.option_widescreen)
+        self._sync_check("Graphics Enhance", snap.flags.option_graphics)
+        self._sync_check("Disable Attack Sounds", snap.flags.option_attack_sounds)
+        self._sync_check("Mute All Music", snap.flags.option_mute_music)
 
     def _set(self, fields, key, text, color=FG):
         if key in fields:
@@ -284,6 +335,10 @@ class App:
             self._set(fields, key, "Applied" if val else "Pending", GREEN if val else ORANGE)
         else:
             self._set(fields, key, "Running" if val else "Stopped", GREEN if val else FG_DIM)
+
+    def _sync_check(self, key, val):
+        if key in self.opt_checks:
+            self.opt_checks[key][0].set(val)
 
     def _on_close(self):
         self.manager.stop()
