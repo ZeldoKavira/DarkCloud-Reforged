@@ -45,17 +45,36 @@ jobs:
       - name: Build executable
         run: pyinstaller --onefile --name DarkCloud-Reforged --windowed src/main.py
 
-      - name: Zip artifact
-        run: |
-          cd dist
-          zip -r ../${{ matrix.artifact }}-${{ steps.version.outputs.tag }}.zip .
+      - name: Zip artifact (Windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path dist\* -DestinationPath ${{ matrix.artifact }}-${{ steps.version.outputs.tag }}.zip
+        shell: pwsh
+
+      - name: Zip artifact (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: cd dist && zip -r ../${{ matrix.artifact }}-${{ steps.version.outputs.tag }}.zip .
         shell: bash
 
-      - name: Upload artifact
+      - name: Rename raw binary
+        run: |
+          cd dist
+          for f in DarkCloud-Reforged*; do
+            ext="${f#DarkCloud-Reforged}"
+            mv "$f" "DarkCloud-Reforged-${{ runner.os }}${ext}"
+          done
+        shell: bash
+
+      - name: Upload zip artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}-${{ steps.version.outputs.tag }}
           path: ${{ matrix.artifact }}-${{ steps.version.outputs.tag }}.zip
+
+      - name: Upload raw artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}-${{ steps.version.outputs.tag }}-raw
+          path: dist/
 
   release:
     needs: build
@@ -73,7 +92,7 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*.zip
+          files: artifacts/**/*
           generate_release_notes: true
 
   prerelease:
@@ -96,6 +115,6 @@ jobs:
         with:
           tag_name: dev-${{ github.sha }}
           name: Pre-release ${{ github.sha }}
-          files: artifacts/**/*.zip
+          files: artifacts/**/*
           prerelease: true
           generate_release_notes: true
