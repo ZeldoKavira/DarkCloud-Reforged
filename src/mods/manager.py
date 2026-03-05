@@ -168,6 +168,9 @@ class ModManager:
         # Instant fishing — default ON for new saves
         if self.mem.read_byte(addr.OPTION_SAVE_INSTANT_FISH) == 0:
             self.mem.write_byte(addr.OPTION_SAVE_INSTANT_FISH, 1)
+        # No limit zones — default ON for new saves
+        if self.mem.read_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES) == 0:
+            self.mem.write_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES, 1)
 
     def _stop_mods(self):
         for mod in self.all_mods:

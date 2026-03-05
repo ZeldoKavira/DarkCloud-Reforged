@@ -131,6 +131,11 @@ class DungeonMod(ModBase):
                 log.info("Run mode %s", "ON" if self._run_mode else "OFF")
             self._l3_held = l3_now
 
+            # Disable limited floor restrictions if option enabled
+            if self.mem.read_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES) == 1:
+                if self.mem.read_int(addr.LIMIT_ZONE_FLAG) != 0:
+                    self.mem.write_int(addr.LIMIT_ZONE_FLAG, 0)
+
             if not self._is_paused() and self._is_walking():
                 self._weapon_effects()
                 self._check_active_items()
