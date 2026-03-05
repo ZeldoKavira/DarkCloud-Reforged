@@ -329,6 +329,9 @@ class DungeonMod(ModBase):
         # Chest randomization
         self._chest_randomizer()
 
+        # Activate side quests for this floor
+        self._check_sidequests()
+
         # Reset monster tracking
         self.monsters_dead = [False] * 15
         self._clear_recent_damage()
@@ -563,6 +566,27 @@ class DungeonMod(ModBase):
         except Exception as e:
             log.debug("SoZ effect error: %s", e)
 
+    def _check_sidequests(self):
+        """Activate side quest flags for current dungeon/floor.
+        Ported from C# Dungeon.CheckSidequests() + monsterQuestActive setup."""
+        # Samba challenge: Moon Sea (4), floor 6, quest flag active
+        if (self.current_dungeon == 4 and self.current_floor == 6 and
+                self.mem.read_byte(0x21CE445E) == 1):
+            self.samba_quest = True
+        else:
+            self.samba_quest = False
+
+        # Mayor quest: Demon Shaft (6), specific floor
+        if self.current_dungeon == 6 and self.mem.read_byte(0x21CE4468) == 1:
+            target_floor = self.mem.read_byte(0x21CE4469) - 1
+            self.mayor_quest = (self.current_floor == target_floor)
+        else:
+            self.mayor_quest = False
+
+        # Monster kill quests
+        from mods.sidequests import check_current_dungeon_quests
+        _, self.monster_quest_active = check_current_dungeon_quests(self.mem)
+
     def _check_current_sidequests(self):
         """Track monster quest kills and side quest progress."""
         if self.monster_quest_active and self.current_dungeon != 6:
@@ -706,7 +730,70 @@ class DungeonMod(ModBase):
             pass
 
     def _check_active_items(self):
-        """Handle escape powder consumption from active item slots."""
+        """Handle square-button use of active item bar (escape/repair powder)."""
+        try:
+            btn = self.mem.read_short(addr.BUTTON_INPUTS)
+            if btn & 0x0080 == 0:  # Square not pressed
+                self.square_active = False
+                return
+            # Active item bar must be visible and idle
+            if self.mem.read_byte(0x21D5676D) == 0 or self.mem.read_int(0x21D56770) != -1:
+                return
+            slot = self.mem.read_int(0x202A3598)
+            item_id = self.mem.read_short(0x21CDD8AC + 2 * slot)
+
+            if item_id == 177:  # Repair powder
+                anim = self.mem.read_byte(0x21DC4484)
+                if anim not in (0, 1, 2, 18) or self.square_active:
+                    return
+                char = self.mem.read_byte(addr.CURRENT_CHARACTER)
+                wep_num = self.mem.read_byte(0x21CDD88C + char)
+                whp_addr = weapon_slot_addr(char, wep_num, 'whp')
+                max_addr = weapon_slot_addr(char, wep_num, 'whpMax')
+                cur_whp = self.mem.read_float(whp_addr)
+                max_whp = self.mem.read_short(max_addr)
+                if cur_whp < max_whp:
+                    self.mem.write_float(whp_addr, float(max_whp))
+                    self._display_message("Used Repair Powder!", 1, 20, 2000)
+                    qty_addr = 0x21CDD8B2 + 2 * slot
+                    qty = self.mem.read_byte(qty_addr) - 1
+                    self.mem.write_byte(qty_addr, qty)
+                    if qty == 0:
+                        self.mem.write_short(0x21CDD8AC + 2 * slot, 0xFFFF)
+                self.square_active = True
+
+            elif item_id == 175:  # Escape powder
+                anim = self.mem.read_byte(0x21DC4484)
+                if anim not in (0, 1, 2, 18) or self.square_active:
+                    return
+                if not self.dun_escape_confirm:
+                    self.square_active = True
+                    self._display_message(
+                        "^RAre you sure you want to leave?\n^WPress square to use Escape Powder.",
+                        2, 36, 3000)
+                    self.dun_escape_confirm = True
+                    self.dun_escape_spam_check = False
+                    def _timer():
+                        time.sleep(0.5)
+                        self.dun_escape_spam_check = True
+                        time.sleep(2.5)
+                        self.dun_escape_confirm = False
+                    threading.Thread(target=_timer, daemon=True).start()
+                elif self.dun_escape_spam_check:
+                    if self.mem.read_byte(addr.DUNGEON_DEBUG_MENU) == 0:
+                        self.square_active = True
+                        self.dun_used_active_escape = True
+                        self.mem.write_byte(addr.DUNGEON_DEBUG_MENU, 170)
+                        qty_addr = 0x21CDD8B2 + 2 * slot
+                        qty = self.mem.read_byte(qty_addr) - 1
+                        self.mem.write_byte(qty_addr, qty)
+                        if qty == 0:
+                            self.mem.write_short(0x21CDD8AC + 2 * slot, 0xFFFF)
+                        log.info("Activated escape powder!")
+        except Exception:
+            pass
+
+        # Also check game-triggered escape (from inventory use)
         if not self.dun_used_active_escape and not self.dun_used_escape_check:
             try:
                 if self.mem.read_byte(addr.DUNGEON_DEBUG_MENU) == 171:

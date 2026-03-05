@@ -93,6 +93,12 @@ class ModManager:
 
             game_mode = snap.game_mode
 
+            # Skip intro screens — jump straight to main menu
+            if game_mode == addr.Mode.TITLE:
+                sub = self.mem.read_int(addr.SUB_MODE)
+                if 0 <= sub < 4:
+                    self.mem.write_int(addr.SUB_MODE, 4)
+
             # Detect entering in-game
             if not self._ingame and game_mode in (addr.Mode.TOWN, addr.Mode.DUNGEON, addr.Mode.CUTSCENE):
                 if game_mode == addr.Mode.CUTSCENE:

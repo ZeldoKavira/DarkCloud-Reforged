@@ -87,6 +87,14 @@ class TownMod(ModBase):
                 continue
 
             if mode != addr.Mode.TOWN:
+                # Credits scene check
+                if mode == 13:
+                    try:
+                        from mods.allyswitch import check_credits_scene
+                        self._at_credits = check_credits_scene(
+                            self.mem, getattr(self, '_at_credits', False))
+                    except Exception:
+                        pass
                 # Exit check
                 if mode in (0, 1):
                     time.sleep(0.1)
@@ -144,6 +152,46 @@ class TownMod(ModBase):
                     self.ally.tick(self.mem)
                 except Exception:
                     pass
+
+                # Broken dagger fix on shop enter
+                if self.ally.currently_in_shop and not self.ally.shop_data_cleared:
+                    from mods.allyswitch import fix_broken_dagger
+                    fix_broken_dagger(self.mem)
+                    self.ally.shop_data_cleared = True
+
+            # Landing animation cancel (prevent stuck ally)
+            try:
+                if self.mem.read_byte(0x21D33E28) == 9:
+                    if not getattr(self, '_fishing_active_cache', False):
+                        self.mem.write_byte(0x21D33E30, 3)
+                self._fishing_active_cache = self.ally.fishing_active if self.ally else False
+            except Exception:
+                pass
+
+            # Yaya enable
+            try:
+                if self.mem.read_byte(0x21CDD80D) != 255:
+                    self.mem.write_byte(0x21F10004, 1)
+            except Exception:
+                pass
+
+            # Mayor door event disable
+            try:
+                if self.mem.read_byte(0x21F10014) == 1:
+                    self.mem.write_byte(0x20415508, 0)
+                    self.mem.write_byte(0x20415538, 0)
+            except Exception:
+                pass
+
+            # Demon shaft unlock check
+            try:
+                from mods.allyswitch import demon_shaft_unlock_check
+                demon_shaft_unlock_check(self.mem, getattr(self, '_ds_unlocked', False))
+            except Exception:
+                pass
+
+            # Weapon level-up check (also runs in town for synth menu)
+            # Handled by dungeon mod's _check_wep_lvl_up via weapons mod
 
             # Fishing tick
             if self.ally and self.ally.fishing_active and self.fishing_state:
@@ -289,6 +337,13 @@ class ElementSwapMod(ModBase):
                 self._running = False
                 return
 
+        # L3: show georama request status
+        btn = self.mem.read_short(addr.BUTTON_INPUTS)
+        l3_now = bool(btn & 0x0200)
+        if l3_now and not getattr(self, '_l3_held', False):
+            self._show_georama_requests()
+        self._l3_held = l3_now
+
         anim = self.mem.read_byte(0x21DC4484)
         # Valid animations for element swap
         valid = anim in (0, 1, 2, 8, 9, 10, 18, 19, 20, 21, 22, 33)
@@ -363,3 +418,30 @@ class ElementSwapMod(ModBase):
             self.switching = True
             log.info("Element changed to %s", ELEM_NAMES[new_elem])
             time.sleep(1.1)  # Debounce
+
+    def _show_georama_requests(self):
+        """Show georama request list for current area via in-game messages."""
+        from data.georama import AREAS, AREA_NAMES
+        from game.display import display_message
+
+        area = self.mem.read_byte(addr.TOWN_AREA)
+        if area < 0 or area >= len(AREAS):
+            return
+
+        houses = AREAS[area]
+        lines = []
+        for house_id, (name, requests) in enumerate(houses):
+            comp_addr = 0x21D19C58 + house_id * 0xE8
+            done = self.mem.read_byte(comp_addr) != 0
+            if done:
+                lines.append(f"^G{name}: Complete")
+            else:
+                for req in requests:
+                    lines.append(f"^R{name}: ^W{req}")
+
+        title = f"^Y{AREA_NAMES[area]} Requests"
+        page_size = 5
+        for i in range(0, len(lines), page_size):
+            page = [title] + lines[i:i + page_size]
+            display_message(self.mem, "\n".join(page),
+                            height=len(page), width=44, display_time=6000)
