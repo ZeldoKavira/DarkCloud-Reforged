@@ -74,6 +74,7 @@ class DungeonMod(ModBase):
 
     def __init__(self, mem):
         super().__init__(mem)
+        self._r3_held = False
         self.prev_floor = 200
         self.current_floor = 0
         self.current_dungeon = 0
@@ -120,6 +121,16 @@ class DungeonMod(ModBase):
 
     def _tick(self):
         if self._in_dungeon_floor():
+            # L3 toggle: always-run (2x movement speed)
+            _FEATHER_FLAG = 0x202A35C0
+            btn = self.mem.read_short(addr.BUTTON_INPUTS)
+            l3_now = bool(btn & 0x0200)
+            if l3_now and not getattr(self, '_l3_held', False):
+                self._run_mode = not getattr(self, '_run_mode', False)
+                self.mem.write_int(_FEATHER_FLAG, 1 if self._run_mode else 0)
+                log.info("Run mode %s", "ON" if self._run_mode else "OFF")
+            self._l3_held = l3_now
+
             if not self._is_paused() and self._is_walking():
                 self._weapon_effects()
                 self._check_active_items()
