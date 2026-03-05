@@ -193,8 +193,14 @@ else
 fi
 
 # ── 8. Launch ────────────────────────────────────────────────────────────────
-info "Starting DarkCloud-Reforged mod..."
-"$MOD_BIN" &
+DEV_SRC="$BASE_DIR/dev/src/main.py"
+if [[ -f "$DEV_SRC" ]]; then
+    info "Dev source detected, running from src/..."
+    python3 "$DEV_SRC" &
+else
+    info "Starting DarkCloud-Reforged mod..."
+    "$MOD_BIN" &
+fi
 
 info "Starting PCSX2..."
 "$PCSX2_BIN" -fullscreen -- "$BASE_DIR/$ISO_NAME"
