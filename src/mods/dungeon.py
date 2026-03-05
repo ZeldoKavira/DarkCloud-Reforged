@@ -136,6 +136,17 @@ class DungeonMod(ModBase):
                 if self.mem.read_int(addr.LIMIT_ZONE_FLAG) != 0:
                     self.mem.write_int(addr.LIMIT_ZONE_FLAG, 0)
 
+            # Force all magic circles to positive effects (0-4)
+            if self.mem.read_byte(addr.OPTION_SAVE_GOOD_CIRCLES) == 1:
+                for s, e in [(addr.CIRCLE_SPAWN_1, addr.CIRCLE_EFFECT_1),
+                             (addr.CIRCLE_SPAWN_2, addr.CIRCLE_EFFECT_2),
+                             (addr.CIRCLE_SPAWN_3, addr.CIRCLE_EFFECT_3),
+                             (addr.BF_CIRCLE_SPAWN_1, addr.BF_CIRCLE_EFFECT_1),
+                             (addr.BF_CIRCLE_SPAWN_2, addr.BF_CIRCLE_EFFECT_2),
+                             (addr.BF_CIRCLE_SPAWN_3, addr.BF_CIRCLE_EFFECT_3)]:
+                    if self.mem.read_int(s) != 0 and self.mem.read_byte(e) > 4:
+                        self.mem.write_byte(e, self.mem.read_byte(e) % 5)
+
             if not self._is_paused() and self._is_walking():
                 self._weapon_effects()
                 self._check_active_items()

@@ -171,6 +171,9 @@ class ModManager:
         # No limit zones — default ON for new saves
         if self.mem.read_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES) == 0:
             self.mem.write_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES, 1)
+        # Good magic circles — default ON for new saves
+        if self.mem.read_byte(addr.OPTION_SAVE_GOOD_CIRCLES) == 0:
+            self.mem.write_byte(addr.OPTION_SAVE_GOOD_CIRCLES, 1)
 
     def _stop_mods(self):
         for mod in self.all_mods:
