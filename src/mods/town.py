@@ -146,6 +146,17 @@ class TownMod(ModBase):
             except Exception:
                 pass
 
+            # L3: show georama request status
+            try:
+                btn = self.mem.read_short(addr.BUTTON_INPUTS)
+                l3_now = bool(btn & 0x0200)
+                if l3_now and not getattr(self, '_l3_held', False):
+                    log.info("L3 pressed in town, btn=0x%04X, calling georama display", btn)
+                    self._show_georama_requests()
+                self._l3_held = l3_now
+            except Exception as e:
+                log.info("L3 check error: %s", e)
+
             # Ally switching tick
             if self.ally:
                 try:
@@ -311,6 +322,88 @@ class TownMod(ModBase):
         except Exception:
             pass
 
+    # DC text encoding: ASCII -> DC glyph bytes
+    _DC_CHAR_MAP = {
+        **{chr(c): b for c, b in zip(range(0x41, 0x5B), range(0x21, 0x3B))},  # A-Z
+        **{chr(c): b for c, b in zip(range(0x61, 0x7B), range(0x3B, 0x55))},  # a-z
+        **{chr(c): b for c, b in zip(range(0x30, 0x3A), range(0x6F, 0x79))},  # 0-9
+        "'": 0x55, '=': 0x56, '"': 0x57, '!': 0x58, '?': 0x59, '#': 0x5A,
+        '&': 0x5B, '+': 0x5C, '-': 0x5D, '*': 0x5E, '(': 0x61, ')': 0x62,
+        '@': 0x63, '<': 0x65, '>': 0x66, '.': 0x6D, '$': 0x6E,
+        '[': 0x69, ']': 0x6A,
+        ':': 0x6B, ',': 0x6C, '/': 0x5F, ';': 0x60,  # likely glyph slots
+    }
+
+    _DC_COLORS = {
+        'W': 0x01, 'Y': 0x02, 'B': 0x03, 'G': 0x04, 'O': 0x06, 'R': 0xFF,
+    }
+
+    def _dc_encode(self, text):
+        """Encode ASCII string to DC message bytes. Supports ^R ^G ^W etc for colors."""
+        out = bytearray()
+        i = 0
+        while i < len(text):
+            ch = text[i]
+            if ch == '^' and i + 1 < len(text) and text[i + 1] in self._DC_COLORS:
+                out += bytes([self._DC_COLORS[text[i + 1]], 0xFC])
+                i += 2
+            elif ch == ' ':
+                out += b'\x02\xFF'
+                i += 1
+            elif ch == '\n':
+                out += b'\x00\xFF'
+                i += 1
+            elif ch in self._DC_CHAR_MAP:
+                out += bytes([self._DC_CHAR_MAP[ch], 0xFD])
+                i += 1
+            else:
+                i += 1  # skip unknown
+        out += b'\x01\xFF'
+        return bytes(out)
+
+    def _show_georama_requests(self):
+        """Display georama request info in town via EditSystemMes."""
+        from data.georama import AREAS, AREA_NAMES
+        area = self.mem.read_byte(addr.TOWN_AREA)
+        if area < 0 or area >= len(AREAS):
+            return
+        houses = AREAS[area]
+        lines = ["^Y" + AREA_NAMES[area]]
+        for house_id, (name, requests) in enumerate(houses):
+            comp_addr = 0x21D19C58 + house_id * 0xE8
+            done = self.mem.read_byte(comp_addr) != 0
+            if done:
+                lines.append("^G" + name + " - Done")
+            else:
+                for req in requests:
+                    lines.append("^R" + name + ": ^W" + req)
+        try:
+            self._display_town_message("\n".join(lines))
+        except Exception as e:
+            log.info("Town message error: %s", e)
+
+    def _display_town_message(self, text, duration=300):
+        """Write text to Edit buffer and trigger display via PNACH cave."""
+        ebase = 0x21D22C10
+        buf_ptr = self.mem.read_int(ebase + 0x17A0)
+        if buf_ptr == 0:
+            return
+        buf = 0x20000000 + (buf_ptr & 0x1FFFFFF)
+        count = self.mem.read_short(buf)
+        idx_off = self.mem.read_short(buf + 6)
+        text_addr = buf + 2 + count * 2 + idx_off * 2
+        msg = self._dc_encode(text)
+        for i, b in enumerate(msg):
+            self.mem.write_byte(text_addr + i, b)
+        # Position: set EditSystemMes struct X/Y directly
+        ebase = 0x21D22C10
+        self.mem.write_int(ebase + 0x00, 20)   # X position
+        self.mem.write_int(ebase + 0x04, 20)   # Y position
+        self.mem.write_int(0x21F10044, 1)
+        self.mem.write_int(0x21F10040, 1)
+        self.mem.write_int(0x202A1F4C, 1)
+        self.mem.write_int(0x202A278C, duration)
+
 
 class ElementSwapMod(ModBase):
     """DPad Up/Down element swapping in dungeon. Ported from Dayuppy.ElementSwapping()."""
@@ -336,13 +429,6 @@ class ElementSwapMod(ModBase):
             if self.mem.read_byte(addr.MODE) in (0, 1):
                 self._running = False
                 return
-
-        # L3: show georama request status
-        btn = self.mem.read_short(addr.BUTTON_INPUTS)
-        l3_now = bool(btn & 0x0200)
-        if l3_now and not getattr(self, '_l3_held', False):
-            self._show_georama_requests()
-        self._l3_held = l3_now
 
         anim = self.mem.read_byte(0x21DC4484)
         # Valid animations for element swap
@@ -417,31 +503,9 @@ class ElementSwapMod(ModBase):
 
             self.switching = True
             log.info("Element changed to %s", ELEM_NAMES[new_elem])
+
+            from game.display import display_message
+            name = ELEM_NAMES[new_elem]
+            msg = f"Changed current attribute to {name}"
+            display_message(self.mem, msg, height=1, width=len(msg) + 2, display_time=1000)
             time.sleep(1.1)  # Debounce
-
-    def _show_georama_requests(self):
-        """Show georama request list for current area via in-game messages."""
-        from data.georama import AREAS, AREA_NAMES
-        from game.display import display_message
-
-        area = self.mem.read_byte(addr.TOWN_AREA)
-        if area < 0 or area >= len(AREAS):
-            return
-
-        houses = AREAS[area]
-        lines = []
-        for house_id, (name, requests) in enumerate(houses):
-            comp_addr = 0x21D19C58 + house_id * 0xE8
-            done = self.mem.read_byte(comp_addr) != 0
-            if done:
-                lines.append(f"^G{name}: Complete")
-            else:
-                for req in requests:
-                    lines.append(f"^R{name}: ^W{req}")
-
-        title = f"^Y{AREA_NAMES[area]} Requests"
-        page_size = 5
-        for i in range(0, len(lines), page_size):
-            page = [title] + lines[i:i + page_size]
-            display_message(self.mem, "\n".join(page),
-                            height=len(page), width=44, display_time=6000)

@@ -372,3 +372,33 @@ patch=1,EE,E1030001,extended,01F10024 //check mod flag
 patch=1,EE,E1020000,extended,002A2534 //check main menu
 patch=1,EE,21DD2914,extended,24020008 //enable start
 patch=1,EE,202210BC,extended,10400013 //enable save slot
+
+//L3 Run Mode Toggle (mod writes 0x21F10038 = 1 when active)
+patch=1,EE,E1010001,extended,01F10038 //if run mode on
+patch=1,EE,202A35C0,extended,00000001 //write BtBySpeedFlag = 1
+patch=1,EE,E1010000,extended,01F10038 //if run mode off
+patch=1,EE,202A35C0,extended,00000000 //write BtBySpeedFlag = 0
+
+//Town Message: MakeMesWin(EditSystemMes, msgID) cave
+//Flag=0x21F10040, msgID=0x21F10044
+//Python sets HelpMesNo/HelpMesCount after flag consumed
+patch=1,EE,20170270,extended,27BDFFF0 // addiu sp,sp,-0x10
+patch=1,EE,20170274,extended,7FBF0000 // sq ra,0(sp)
+patch=1,EE,20170278,extended,0C058078 // jal SystemMesDraw
+patch=1,EE,2017027C,extended,00000000 // nop
+patch=1,EE,20170280,extended,3C0221F1 // lui v0,0x21F1
+patch=1,EE,20170284,extended,8C430040 // lw v1,0x0040(v0) flag
+patch=1,EE,20170288,extended,10600007 // beq v1,zero,+7 skip
+patch=1,EE,2017028C,extended,00000000 // nop
+patch=1,EE,20170290,extended,AC400040 // sw zero,0x0040(v0) clear
+patch=1,EE,20170294,extended,3C0401D2 // lui a0,0x01D2
+patch=1,EE,20170298,extended,24842C10 // addiu a0,0x2C10 EditSystemMes
+patch=1,EE,2017029C,extended,8C450044 // lw a1,0x0044(v0) msgID
+patch=1,EE,201702A0,extended,0C054154 // jal MakeMesWin
+patch=1,EE,201702A4,extended,00000000 // nop
+patch=1,EE,201702A8,extended,7BBF0000 // lq ra,0(sp)
+patch=1,EE,201702AC,extended,27BD0010 // addiu sp,sp,0x10
+patch=1,EE,201702B0,extended,03E00008 // jr ra
+patch=1,EE,201702B4,extended,00000000 // nop
+//Hook
+patch=1,EE,20173764,extended,0C05C09C // jal cave

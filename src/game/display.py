@@ -145,6 +145,7 @@ def _display_process(mem, text, height, width, display_time, is_clear_msg):
     # Trigger display
     try:
         mem.write_int(MSG_DISPLAY, 0xFFFFFFFF)  # Clear
+        time.sleep(0.05)
         msg_id = 3319 if is_clear_msg else 10
         mem.write_int(MSG_DISPLAY, msg_id)
         mem.write_int(MSG_DURATION, frames)
@@ -162,17 +163,15 @@ def _display_process(mem, text, height, width, display_time, is_clear_msg):
                 break
 
 
-def _wait_for_available(mem, timeout=8.0):
-    """Wait until no message is currently displaying."""
+def _wait_for_available(mem, timeout=0.5):
+    """Brief wait for message system to be ready."""
     elapsed = 0
     while elapsed < timeout:
         try:
             cur = mem.read_int(MSG_DISPLAY)
-            item_msg = mem.read_int(MSG_ITEM)
-            dbg = mem.read_byte(addr.DUNGEON_DEBUG_MENU)
-            if (cur == -1 or cur == 171) and item_msg == -1 and dbg not in (121, 131):
+            if cur == 0xFFFFFFFF or cur == 171:
                 return
         except Exception:
             return
-        time.sleep(0.1)
-        elapsed += 0.1
+        time.sleep(0.05)
+        elapsed += 0.05

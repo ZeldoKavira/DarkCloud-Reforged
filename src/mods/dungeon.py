@@ -122,14 +122,19 @@ class DungeonMod(ModBase):
     def _tick(self):
         if self._in_dungeon_floor():
             # L3 toggle: always-run (2x movement speed)
-            _FEATHER_FLAG = 0x202A35C0
             btn = self.mem.read_short(addr.BUTTON_INPUTS)
             l3_now = bool(btn & 0x0200)
             if l3_now and not getattr(self, '_l3_held', False):
                 self._run_mode = not getattr(self, '_run_mode', False)
-                self.mem.write_int(_FEATHER_FLAG, 1 if self._run_mode else 0)
+                self.mem.write_byte(addr.RUN_MODE_FLAG, 1 if self._run_mode else 0)
                 log.info("Run mode %s", "ON" if self._run_mode else "OFF")
             self._l3_held = l3_now
+
+            # R3: show georama request status
+            r3_now = bool(btn & 0x0400)
+            if r3_now and not getattr(self, '_r3_held', False):
+                self._show_georama_requests()
+            self._r3_held = r3_now
 
             # Disable limited floor restrictions if option enabled
             if self.mem.read_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES) == 1:
@@ -737,7 +742,7 @@ class DungeonMod(ModBase):
                 self.square_active = False
                 return
             # Active item bar must be visible and idle
-            if self.mem.read_byte(0x21D5676D) == 0 or self.mem.read_int(0x21D56770) != -1:
+            if self.mem.read_byte(0x21D5676D) == 0 or self.mem.read_int(0x21D56770) != 0xFFFFFFFF:
                 return
             slot = self.mem.read_int(0x202A3598)
             item_id = self.mem.read_short(0x21CDD8AC + 2 * slot)
@@ -840,3 +845,30 @@ class DungeonMod(ModBase):
             self.mem.write_int(addr.DAMAGE_SOURCE, 0)
         except Exception:
             pass
+
+    def _show_georama_requests(self):
+        """Show georama request list for current area via dungeon HUD."""
+        from data.georama import AREAS, AREA_NAMES
+        from game.display import display_message
+
+        area = self.mem.read_byte(addr.TOWN_AREA)
+        if area < 0 or area >= len(AREAS):
+            return
+
+        houses = AREAS[area]
+        lines = []
+        for house_id, (name, requests) in enumerate(houses):
+            comp_addr = 0x21D19C58 + house_id * 0xE8
+            done = self.mem.read_byte(comp_addr) != 0
+            if done:
+                lines.append(f"^G{name}: Complete")
+            else:
+                for req in requests:
+                    lines.append(f"^R{name}: ^W{req}")
+
+        title = f"^Y{AREA_NAMES[area]} Requests"
+        page_size = 5
+        for i in range(0, len(lines), page_size):
+            page = [title] + lines[i:i + page_size]
+            display_message(self.mem, "\n".join(page),
+                            height=len(page), width=44, display_time=6000)
