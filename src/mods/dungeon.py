@@ -133,8 +133,9 @@ class DungeonMod(ModBase):
 
             # Disable limited floor restrictions if option enabled
             if self.mem.read_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES) == 1:
-                if self.mem.read_int(addr.LIMIT_ZONE_FLAG) != 0:
-                    self.mem.write_int(addr.LIMIT_ZONE_FLAG, 0)
+                v = self.mem.read_int(addr.LIMIT_ZONE_FLAG)
+                if v != -1 and v != 0xFFFFFFFF:
+                    self.mem.write_int(addr.LIMIT_ZONE_FLAG, 0xFFFFFFFF)
 
             # Force all magic circles to positive effects (0-4)
             if self.mem.read_byte(addr.OPTION_SAVE_GOOD_CIRCLES) == 1:

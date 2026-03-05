@@ -35,6 +35,7 @@ class DungeonInfo:
     is_paused: bool = False
     is_cleared: bool = False
     back_floor: bool = False
+    limit_zone: int = -1
 
 
 @dataclass
@@ -236,6 +237,7 @@ class GameState:
             snap.dungeon.mode = mem.read_byte(addr.DUNGEON_MODE)
             snap.dungeon.back_floor = mem.read_byte(addr.BACK_FLOOR_FLAG) != 0
             snap.dungeon.is_cleared = mem.read_int(addr.DUNGEON_CLEAR) == 4294967281
+            snap.dungeon.limit_zone = mem.read_int(addr.LIMIT_ZONE_FLAG)
             # Pause check
             pause_title = mem.read_byte(addr.DUN_PAUSE_TITLE)
             pause_player = mem.read_byte(addr.DUN_PAUSE_PLAYER)

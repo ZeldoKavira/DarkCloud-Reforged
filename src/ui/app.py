@@ -130,7 +130,7 @@ class App:
 
         self.loc_panel = self._panel(right, "Location")
         self.loc_fields = self._add_fields(self.loc_panel, [
-            "Area", "Floor", "Dungeon Mode", "Back Floor", "Paused", "Cleared",
+            "Area", "Floor", "Dungeon Mode", "Back Floor", "Paused", "Cleared", "Limit Zone",
             "Time of Day", "Day",
         ])
 
@@ -305,6 +305,11 @@ class App:
             self._set_bool(self.loc_fields, "Back Floor", d.back_floor)
             self._set_bool(self.loc_fields, "Paused", d.is_paused)
             self._set_bool(self.loc_fields, "Cleared", d.is_cleared)
+            lz = d.limit_zone
+            if lz == -1 or lz == 0xFFFFFFFF:
+                self._set(self.loc_fields, "Limit Zone", "None", FG_DIM)
+            else:
+                self._set(self.loc_fields, "Limit Zone", str(lz), RED)
             self._set(self.loc_fields, "Time of Day", "—")
             self._set(self.loc_fields, "Day", "—")
         else:
