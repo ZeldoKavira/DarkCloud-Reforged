@@ -144,7 +144,7 @@ class App:
         self.opt_checks = self._add_checkboxes(self.opt_panel, [
             "Disable Beep", "Disable Battle Music", "Widescreen",
             "Graphics Enhance", "Disable Attack Sounds", "Mute All Music",
-            "Instant Fishing",
+            "Instant Fishing", "Disable Dungeon Limited Zones", "Disable Bad Magic Circles",
         ])
 
         # Log area (fixed at bottom, outside scroll)
@@ -228,6 +228,10 @@ class App:
                 self.opt_checks["Disable Battle Music"][0].set(True)
         elif label == "Instant Fishing":
             mem.write_byte(addr.OPTION_SAVE_INSTANT_FISH, val)
+        elif label == "Disable Dungeon Limited Zones":
+            mem.write_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES, val)
+        elif label == "Disable Bad Magic Circles":
+            mem.write_byte(addr.OPTION_SAVE_GOOD_CIRCLES, val)
 
     def _on_state_update(self, snap: GameSnapshot):
         """Called from poll thread — schedule UI update on main thread."""
@@ -325,6 +329,9 @@ class App:
         self._sync_check("Graphics Enhance", snap.flags.option_graphics)
         self._sync_check("Disable Attack Sounds", snap.flags.option_attack_sounds)
         self._sync_check("Mute All Music", snap.flags.option_mute_music)
+        self._sync_check("Instant Fishing", snap.flags.option_instant_fish)
+        self._sync_check("Disable Dungeon Limited Zones", snap.flags.option_no_limit_zones)
+        self._sync_check("Disable Bad Magic Circles", snap.flags.option_good_circles)
 
     def _set(self, fields, key, text, color=FG):
         if key in fields:
