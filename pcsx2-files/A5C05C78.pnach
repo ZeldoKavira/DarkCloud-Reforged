@@ -402,3 +402,22 @@ patch=1,EE,201702B0,extended,03E00008 // jr ra
 patch=1,EE,201702B4,extended,00000000 // nop
 //Hook
 patch=1,EE,20173764,extended,0C05C09C // jal cave
+
+
+//Repair powder fallback cave (check auto repair, then regular repair)
+patch=1,EE,201702B8,extended,27BDFFF0 // addiu sp,sp,-0x10
+patch=1,EE,201702BC,extended,7FBF0000 // sq ra,0(sp)
+patch=1,EE,201702C0,extended,AFA40004 // sw a0,0x4(sp)
+patch=1,EE,201702C4,extended,0C06F918 // jal CheckActItemSlot
+patch=1,EE,201702C8,extended,00000000 // nop
+patch=1,EE,201702CC,extended,2403FFFF // li v1,-1
+patch=1,EE,201702D0,extended,14430004 // bne v0,v1,+4
+patch=1,EE,201702D4,extended,00000000 // nop
+patch=1,EE,201702D8,extended,8FA40004 // lw a0,0x4(sp)
+patch=1,EE,201702DC,extended,240500B1 // li a1,0xB1 (repair powder)
+patch=1,EE,201702E0,extended,0C06F918 // jal CheckActItemSlot
+patch=1,EE,201702E4,extended,00000000 // nop
+patch=1,EE,201702E8,extended,7BBF0000 // lq ra,0(sp)
+patch=1,EE,201702EC,extended,27BD0010 // addiu sp,sp,0x10
+patch=1,EE,201702F0,extended,03E00008 // jr ra
+patch=1,EE,201702F4,extended,00000000 // nop

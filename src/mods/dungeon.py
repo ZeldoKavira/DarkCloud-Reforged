@@ -142,6 +142,14 @@ class DungeonMod(ModBase):
                 if v != -1 and v != 0xFFFFFFFF:
                     self.mem.write_int(addr.LIMIT_ZONE_FLAG, 0xFFFFFFFF)
 
+            # Repair powder fallback: regular repair powder also auto-repairs
+            repair_on = self.mem.read_byte(addr.OPTION_SAVE_REPAIR_FALLBACK) != 0
+            cur_hook = self.mem.read_int(0x201B5F30)
+            if repair_on and cur_hook != 0x0C05C0AE:
+                self.mem.write_int(0x201B5F30, 0x0C05C0AE)  # jal cave
+            elif not repair_on and cur_hook != 0x0C06F918:
+                self.mem.write_int(0x201B5F30, 0x0C06F918)  # jal CheckActItemSlot
+
             # Force all magic circles to positive effects (0-4)
             if self.mem.read_byte(addr.OPTION_SAVE_GOOD_CIRCLES) == 1:
                 for s, e in [(addr.CIRCLE_SPAWN_1, addr.CIRCLE_EFFECT_1),

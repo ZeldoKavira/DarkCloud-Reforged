@@ -174,6 +174,9 @@ class ModManager:
         # Good magic circles — default ON for new saves
         if self.mem.read_byte(addr.OPTION_SAVE_GOOD_CIRCLES) == 0:
             self.mem.write_byte(addr.OPTION_SAVE_GOOD_CIRCLES, 1)
+        # Repair powder fallback — default ON for new saves
+        if self.mem.read_byte(addr.OPTION_SAVE_REPAIR_FALLBACK) == 0:
+            self.mem.write_byte(addr.OPTION_SAVE_REPAIR_FALLBACK, 1)
 
     def _stop_mods(self):
         for mod in self.all_mods:

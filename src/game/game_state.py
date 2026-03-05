@@ -66,6 +66,7 @@ class ModFlags:
     option_instant_fish: bool = True
     option_no_limit_zones: bool = True
     option_good_circles: bool = True
+    option_repair_fallback: bool = True
 
 
 @dataclass
@@ -196,6 +197,7 @@ class GameState:
         snap.flags.option_instant_fish = mem.read_byte(addr.OPTION_SAVE_INSTANT_FISH) == 1
         snap.flags.option_no_limit_zones = mem.read_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES) == 1
         snap.flags.option_good_circles = mem.read_byte(addr.OPTION_SAVE_GOOD_CIRCLES) == 1
+        snap.flags.option_repair_fallback = mem.read_byte(addr.OPTION_SAVE_REPAIR_FALLBACK) == 1
 
         # Player info
         char_id = mem.read_byte(addr.CURRENT_CHARACTER)

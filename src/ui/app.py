@@ -145,6 +145,7 @@ class App:
             "Disable Beep", "Disable Battle Music", "Widescreen",
             "Graphics Enhance", "Disable Attack Sounds", "Mute All Music",
             "Instant Fishing", "Disable Dungeon Limited Zones", "Disable Bad Magic Circles",
+            "Repair Powder is Automatic",
         ])
 
         # Log area (fixed at bottom, outside scroll)
@@ -232,6 +233,8 @@ class App:
             mem.write_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES, val)
         elif label == "Disable Bad Magic Circles":
             mem.write_byte(addr.OPTION_SAVE_GOOD_CIRCLES, val)
+        elif label == "Repair Powder is Automatic":
+            mem.write_byte(addr.OPTION_SAVE_REPAIR_FALLBACK, val)
 
     def _on_state_update(self, snap: GameSnapshot):
         """Called from poll thread — schedule UI update on main thread."""
@@ -337,6 +340,7 @@ class App:
         self._sync_check("Instant Fishing", snap.flags.option_instant_fish)
         self._sync_check("Disable Dungeon Limited Zones", snap.flags.option_no_limit_zones)
         self._sync_check("Disable Bad Magic Circles", snap.flags.option_good_circles)
+        self._sync_check("Repair Powder is Automatic", snap.flags.option_repair_fallback)
 
     def _set(self, fields, key, text, color=FG):
         if key in fields:
