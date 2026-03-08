@@ -10,33 +10,6 @@ from game import addresses as addr
 
 log = logging.getLogger(__name__)
 
-# Game character encoding table (index → byte value)
-# Maps printable characters to their in-game byte representation
-# Index 127 = space (maps to 2), index 0 = newline (maps to 0)
-_GAME_CHARS = (
-    '^§_¤§§§§§§§§§§Ȟ§§§§§§§§§§§§§§§§§'  # 0-32
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'            # 33-58
-    'abcdefghijklmnopqrstuvwxyz'            # 59-84
-    "´=\"!?#&+-*/%()@|<>{}[]:,.$"           # 85-110
-    '0123456789ŤӾƱƀŲŌ '                    # 111-127
-)
-
-_GAME_BYTES = [
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    2, 88, 87, 90, 110, 96, 91, 85, 97, 98, 94, 92, 108, 93, 109, 95,
-    111, 112, 113, 114, 115, 117, 118, 119, 120, 121, 107, 0, 101, 86, 102, 89,
-    99, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-    48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 105, 0, 106, 0, 2,
-    0, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73,
-    74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 103, 100, 104, 2,
-]
-
-# Build lookup: character → game byte
-_CHAR_MAP = {}
-for i, ch in enumerate(_GAME_CHARS):
-    if i < len(_GAME_BYTES):
-        _CHAR_MAP[ch] = _GAME_BYTES[i] if i != 127 else 2
-
 # Default dialogue base addresses per area
 _DEFAULT_ADDRS = {
     0: 0x206494C4,   # Norune
@@ -62,41 +35,51 @@ QUEENS_QUEST_NPCS = [13108, 13363, 12852]
 MUSKA_QUEST_NPCS = [14388, 13109, 12341]
 
 
-def encode_dialogue(text):
-    """Encode a dialogue string into game bytes.
+# Raw gameCharacters index encoding (matches C# SetDialogue/SetDialogueOptions)
+# This matches C# SetDialogueOptions which writes the array index directly
+_OPTIONS_CHAR_INDEX = {}
+_OPTIONS_CHARS = (
+    '^§_¤§§§§§§§§§§Ȟ§§§§§§§§§§§§§§§§§§'  # 0-33 (34 chars, matching C# indices 0-33)
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'             # 34-59 -> C# 33-58... 
+)
+# Build from the C# gameCharacters array directly (128 entries, index 0-127)
+_OPT_CHARS = list('^§_¤') + ['§']*10 + ['Ȟ'] + ['§']*18 + list('ABCDEFGHIJKLMNOPQRSTUVWXYZ') + list('abcdefghijklmnopqrstuvwxyz') + list('´="!?#&+-*/%()@|<>{}[]:,.$') + list('0123456789ŤӾƱƀŲŌ ')
+_OPT_MAP = {}
+for _i, _ch in enumerate(_OPT_CHARS):
+    if _ch not in _OPT_MAP or _ch == '§':  # first occurrence wins, except § is filler
+        if _ch != '§':
+            _OPT_MAP[_ch] = _i
 
-    Uses the Dialogues.cs gameCharacters/gameCharacters2 encoding.
-    ^ = newline, space = 0x02/0xFF pair.
-    Returns list of bytes to write sequentially.
-    """
+
+def _encode_options(text):
+    """Encode dialogue options text using raw index encoding (C# SetDialogueOptions style)."""
     out = []
     for ch in text:
-        if ch == '^':
-            out.extend([0, 255])  # newline
-        elif ch == ' ':
-            out.extend([2, 255])  # space
-        elif ch in _CHAR_MAP:
-            b = _CHAR_MAP[ch]
-            if b in (0, 2, 3):
-                out.extend([b, 255])
-            else:
-                out.extend([b, 253])
+        if ch in _OPT_MAP:
+            idx = _OPT_MAP[ch]
         else:
-            # Try ASCII lookup
-            o = ord(ch)
-            if 0 < o < len(_GAME_BYTES):
-                b = _GAME_BYTES[o]
-                out.extend([b, 253] if b not in (0, 2, 3) else [b, 255])
-            else:
-                out.extend([2, 255])  # unknown → space
+            idx = 127  # space fallback
+        # C# maps high indices: 121→250, 122→251, ..., 126→255, 127→2
+        if idx > 120:
+            val = (idx - 121) + 250 if idx <= 126 else 2
+        else:
+            val = idx
+        out.append(val)
+        # Suffix byte
+        if val in (0, 2, 3):
+            out.append(255)
+        elif val >= 250:
+            out.append(250)
+        else:
+            out.append(253)
     # Terminator
     out.extend([1, 255])
     return out
 
 
-def write_dialogue(mem, base_addr, text):
-    """Encode and write dialogue text to memory at base_addr."""
-    encoded = encode_dialogue(text)
+def _write_options(mem, base_addr, text):
+    """Encode and write dialogue options to memory."""
+    encoded = _encode_options(text)
     for i, b in enumerate(encoded):
         mem.write_byte(base_addr + i, b)
     return len(encoded)
@@ -112,8 +95,7 @@ def set_default_dialogue(mem, area):
         text = "Hey chill, don\u00b4t come talking so fast!"
     elif area == 38:
         text = "Wait a second please,^I was doing something."
-    write_dialogue(mem, base, text)
-    log.debug("Set default dialogue for area %d", area)
+    _write_options(mem, base, text)
 
 
 def set_dialogue_options(mem, area, building_check=False):
@@ -121,16 +103,20 @@ def set_dialogue_options(mem, area, building_check=False):
     _OPTION_CFG = {
         0: {'base': 0x206492F6, 'storage_house': 5, 'storage_addr': 0x20649364,
             'normal': "Hello.^  How should I rebuild Norune?^  It\u00b4s finished!^  Do you have any sidequests?",
-            'storage': "   Can I check in some items?^  Hello.^  How should I rebuild Norune?^  It\u00b4s finished!"},
+            'storage': "   Can I check in some items?^  Hello.^  How should I rebuild Norune?^  It\u00b4s finished!",
+            'sq_id': 107},
         1: {'base': 0x20649306, 'storage_house': 5, 'storage_addr': 0x2064938A,
             'normal': "Hello.^  How should I rebuild Matataki Village?^  It\u00b4s finished!^  Do you have any sidequests?",
-            'storage': "  Can I check in some items?^  Hello.^  How should I rebuild Matataki Village?^  It\u00b4s finished!"},
+            'storage': "  Can I check in some items?^  Hello.^  How should I rebuild Matataki Village?^  It\u00b4s finished!",
+            'sq_id': 107},
         2: {'base': 0x206492DA, 'storage_house': 7, 'storage_addr': 0x20649354,
             'normal': "Hi.^  Any requests for rebuilding Queens?^  It\u00b4s finished!^  Do you have any sidequests?",
-            'storage': "  Can I check in some items?^  Hello.^  Any requests for rebuilding Queens?^  It\u00b4s finished!"},
+            'storage': "  Can I check in some items?^  Hello.^  Any requests for rebuilding Queens?^  It\u00b4s finished!",
+            'sq_id': 127},
         3: {'base': 0x20649288, 'storage_house': 5, 'storage_addr': 0x2064930C,
             'normal': "Hello.^  Any requests for building Muska Racka?^  It\u00b4s finished!^  Do you have any sidequests?",
-            'storage': "  Can I check in some items?^  Hello.^  Any requests for building Muska Racka?^  It\u00b4s finished!"},
+            'storage': "  Can I check in some items?^  Hello.^  Any requests for building Muska Racka?^  It\u00b4s finished!",
+            'sq_id': 147},
     }
     cfg = _OPTION_CFG.get(area)
     if not cfg:
@@ -138,21 +124,21 @@ def set_dialogue_options(mem, area, building_check=False):
         if area == 23 and building_check:
             npc_type = mem.read_byte(0x21D26FD4)
             if npc_type == 0:
-                write_dialogue(mem, 0x20649004, "Can I shop here?^  Hello.^  Do you have any sidequests?")
+                _write_options(mem, 0x20649004, "Can I shop here?^  Hello.^  Do you have any sidequests?")
             elif npc_type == 1:
-                write_dialogue(mem, 0x20649004, "Can I check in some items?^  Hello.^  Do you have any sidequests?")
+                _write_options(mem, 0x20649004, "Can I check in some items?^  Hello.^  Do you have any sidequests?")
         return
 
     if not building_check:
-        write_dialogue(mem, cfg['base'], cfg['normal'])
+        _write_options(mem, cfg['base'], cfg['normal'])
     else:
         house = mem.read_byte(0x202A2820)
         if house == cfg['storage_house']:
-            write_dialogue(mem, cfg['storage_addr'], cfg['storage'])
+            _write_options(mem, cfg['storage_addr'], cfg['storage'])
         elif area == 0 and mem.read_int(0x202A2820) == -1:
-            write_dialogue(mem, cfg['base'], "Hello.^  Do you have any sidequests?")
+            _write_options(mem, cfg['base'], "Hello.^  Do you have any sidequests?")
         else:
-            write_dialogue(mem, cfg['base'], cfg['normal'])
+            _write_options(mem, cfg['base'], cfg['normal'])
 
 
 class DialogueState:
@@ -171,7 +157,9 @@ class DialogueState:
         self.current_area = new_area
         self.dialogue_checks = [0] * 15
         self.current_char = 0
-        set_default_dialogue(mem, new_area)
+        # C# only calls SetDefaultDialogue for areas 42 and 14
+        if new_area in (42, 14):
+            set_default_dialogue(mem, new_area)
 
     def change_dialogue(self, idx=None):
         """Toggle dialogue flag between 0 and 1 for current/given index."""
@@ -180,7 +168,7 @@ class DialogueState:
 
     def set_npc_dialogue(self, mem, npc_id, text, base_addr):
         """Write custom dialogue for a specific NPC."""
-        write_dialogue(mem, base_addr, text)
+        _write_options(mem, base_addr, text)
         log.debug("Set dialogue for NPC %d", npc_id)
 
     def set_dialogue(self, mem, npc_slot, is_ally, is_sidequest, is_finished=False):
@@ -196,7 +184,8 @@ class DialogueState:
         # Area change detection
         if area != self.current_area:
             self.current_area = area
-            set_default_dialogue(mem, area)
+            if area in (42, 14):
+                set_default_dialogue(mem, area)
             self.dialogue_checks = [0] * 15
             self.current_char = 0
 
@@ -207,7 +196,8 @@ class DialogueState:
             if is_ally:
                 self.dialogue_checks = [0] * 15
             self.current_char = chr_sig
-            set_default_dialogue(mem, area)
+            if area in (42, 14):
+                set_default_dialogue(mem, area)
 
         # Read NPC character ID from proximity slot
         npc_addr = npc_slot * 0x14A0 + 0x21D26FD9
@@ -222,7 +212,7 @@ class DialogueState:
         # Get write address for this area
         write_addr = _get_write_addr(area, is_sidequest, is_finished)
         if write_addr:
-            write_dialogue(mem, write_addr, text)
+            _write_options(mem, write_addr, text)
             log.debug("Wrote dialogue for NPC %d in area %d", npc_id, area)
 
     def _resolve_dialogue(self, mem, area, npc_id, chr_sig,
@@ -293,13 +283,14 @@ class DialogueState:
 
     def _get_sidequest_dialogue(self, mem, area, npc_id):
         """Get sidequest dialogue for NPC. Delegates to SideQuestManager."""
-        from mods.sidequests import QUEST_ADDRS, FISH_QUEST_ADDRS
+        from mods.sidequests import QUEST_ADDRS, FISH_QUEST_ADDRS, get_fishing_quest_dialogue
         quest_lists = {0: NORUNE_QUEST_NPCS, 1: MATATAKI_QUEST_NPCS,
                        2: QUEENS_QUEST_NPCS, 3: MUSKA_QUEST_NPCS}
         quest_npcs = quest_lists.get(area, [])
         if npc_id in quest_npcs:
-            # Delegate to SideQuestManager.GetQuestDialogue equivalent
-            return None  # Quest dialogue handled by sidequests module
+            if npc_id in FISH_QUEST_ADDRS:
+                return get_fishing_quest_dialogue(mem, npc_id)
+            return None  # Monster quest dialogue handled elsewhere
         # Special non-quest NPCs with hardcoded sidequest dialogue
         _SPECIAL = {
             12849: "I needed your help earlier,^but I\u00b4m okay now.\u00a4You see, I slipped on this^pink thing which made me all^slow and slimey.\u00a4Well, I survived from that disaster.",
@@ -538,7 +529,7 @@ def set_fishing_disabled_dialogue(mem, area):
     base = _FISHING_DISABLE_ADDRS.get(area)
     if base is None:
         return
-    write_dialogue(mem, base, "Only Ť is able to fish here.")
+    _write_options(mem, base, "Only Ť is able to fish here.")
     log.debug("Set fishing disabled dialogue for area %d", area)
 
 
@@ -559,13 +550,13 @@ def check_ally_fishing(mem, area, is_using_ally):
 
 def fix_fairy_king_dialogue(mem):
     """Write custom Fairy King dialogue about ally summoning."""
-    write_dialogue(mem, 0x20425014,
+    _write_options(mem, 0x20425014,
                    "You can call your allies everywhere^in the world, but however...")
 
 
 def intro_text_at_norune(mem):
     """Write intro cutscene text at Norune."""
-    write_dialogue(mem, 0x20370A4E,
+    _write_options(mem, 0x20370A4E,
                    "Wait...\u00a4Have you already done^this before?\u00a4Hmm... well,^whatever the case is...\u00a4Prepare for a great journey,^or should I say...\u00a4A Reforged journey!!")
 
 

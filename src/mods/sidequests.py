@@ -269,6 +269,83 @@ def generate_fishing_quest_two(mem, npc_id):
     log.info("Fishing quest: catch fish size %d-%d", size, size + margin)
 
 
+_LOCATION_NAMES = {0: "Norune Pond", 1: "Matataki", 2: "Queens", 3: "Muska Lacka"}
+
+# Fishing quest NPC config: unlock flag, progress flag, location name
+_FISH_NPC_CONFIG = {
+    13872: {'unlock': 0x21CE4475, 'progress': 0x21CE4416, 'loc': "Norune Pond"},
+    13362: {'unlock': 0x21CE4477, 'progress': 0x21CE441E, 'loc': "Matataki"},
+    13363: {'unlock': 0x21CE4479, 'progress': 0x21CE4427, 'loc': "Queens"},
+    13109: {'unlock': 0x21CE447B, 'progress': 0x21CE4431, 'loc': "Muska Lacka"},
+}
+
+def get_fishing_quest_dialogue(mem, npc_id):
+    """Return dialogue for fishing quest NPC. Only generates quest data + returns text.
+    State advancement (unlock/progress) is handled by _check_sidequest_dialogue."""
+    import random
+    cfg = _FISH_NPC_CONFIG.get(npc_id)
+    if not cfg:
+        return None
+    addrs = FISH_QUEST_ADDRS.get(npc_id)
+    if not addrs:
+        return None
+
+    if mem.read_byte(cfg['unlock']) != 1:
+        return ("Oh, I bet you can already guess what^I have in store for you."
+                "\xa4That's right, Fishing Quests!"
+                "\xa4There are 2 types of fishing quests,^and whenever you talk to me,"
+                "^I can assign you one of them."
+                "\xa4I hope you like fishing!")
+
+    progress = mem.read_byte(cfg['progress'])
+    loc = cfg['loc']
+
+    if progress == 0:
+        # Generate new quest data (don't advance progress — CheckSideQuestDialogue does that)
+        qtype = random.randint(0, 1)
+        mem.write_byte(addrs['type'], qtype)
+        if qtype == 0:
+            generate_fishing_quest_one(mem, npc_id)
+            name_idx = mem.read_byte(addrs['name'])
+            area = mem.read_byte(LOCATION_ADDR)
+            tbl = area if area in _FISH_NAMES else 0
+            if area == 1 and 'location' in addrs:
+                ml = mem.read_byte(addrs['location'])
+                tbl = 11 if ml >= 50 else 1
+            names = _FISH_NAMES.get(tbl, _FISH_NAMES[0])
+            fname = names[name_idx] if name_idx < len(names) else "fish"
+            count = mem.read_byte(addrs['counter'])
+            return f"Your quest is to catch^{count} {fname} at the {loc}.^Good luck!"
+        else:
+            generate_fishing_quest_two(mem, npc_id)
+            lo = mem.read_byte(addrs['min_size'])
+            hi = mem.read_byte(addrs['max_size'])
+            return f"Your quest is to catch any fish^of a size from {lo} cm to {hi} cm^at the {loc}.^Good luck!"
+
+    elif progress == 1:
+        qtype = mem.read_byte(addrs['type'])
+        if qtype == 0:
+            name_idx = mem.read_byte(addrs['name'])
+            area = mem.read_byte(LOCATION_ADDR)
+            tbl = area if area in _FISH_NAMES else 0
+            if area == 1 and 'location' in addrs:
+                ml = mem.read_byte(addrs['location'])
+                tbl = 11 if ml >= 50 else 1
+            names = _FISH_NAMES.get(tbl, _FISH_NAMES[0])
+            fname = names[name_idx] if name_idx < len(names) else "fish"
+            left = mem.read_byte(addrs['counter'])
+            return f"You're still on the quest to catch^{fname} at the {loc},^just {left} left!"
+        else:
+            lo = mem.read_byte(addrs['min_size'])
+            hi = mem.read_byte(addrs['max_size'])
+            return f"You're still on the quest to catch any^fish of a size from {lo} cm to {hi} cm^at the {loc}.^Good luck!"
+
+    elif progress == 2:
+        return "Nicely done!^Here's your reward: Fishing Points!"
+
+    return None
+
+
 def check_fish_collection(mem):
     """Check master fish quest progress. Returns (complete, missing_names)."""
     a = 0x21CE4439

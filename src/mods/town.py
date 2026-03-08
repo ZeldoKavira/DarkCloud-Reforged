@@ -362,8 +362,9 @@ class TownMod(ModBase):
         return bytes(out)
 
     def _show_georama_requests(self):
-        """Display georama request info in town via EditSystemMes."""
+        """Display georama request info via overlay."""
         from data.georama import AREAS, AREA_NAMES
+        from ui.overlay import show_text
         area = self.mem.read_byte(addr.TOWN_AREA)
         if area < 0 or area >= len(AREAS):
             return
@@ -372,15 +373,10 @@ class TownMod(ModBase):
         for house_id, (name, requests) in enumerate(houses):
             comp_addr = 0x21D19C58 + house_id * 0xE8
             done = self.mem.read_byte(comp_addr) != 0
-            if done:
-                lines.append("^G" + name + " - Done")
-            else:
-                for req in requests:
-                    lines.append("^R" + name + ": ^W" + req)
-        try:
-            self._display_town_message("\n".join(lines))
-        except Exception as e:
-            log.info("Town message error: %s", e)
+            color = "^G" if done else "^R"
+            for req in requests:
+                lines.append(color + name + ": ^W" + req)
+        show_text("\n".join(lines))
 
     def _display_town_message(self, text, duration=300):
         """Write text to Edit buffer and trigger display via PNACH cave."""

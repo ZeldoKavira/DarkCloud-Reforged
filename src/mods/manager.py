@@ -147,6 +147,8 @@ class ModManager:
         for mod in self.all_mods:
             mod.start()
         self._mods_started = True
+        from ui.overlay import start_overlay
+        start_overlay()
 
     def _apply_saved_options(self):
         """Copy saved option flags to runtime addresses (C# ModWindowSettingsCheck)."""

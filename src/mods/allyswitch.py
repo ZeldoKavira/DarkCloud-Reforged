@@ -105,6 +105,9 @@ class AllySwitchState:
         self.currently_in_shop = False
         self.shop_data_cleared = False
         self.sidequest_option_flag = False
+        self._sq_dialogue_active = False
+        self._sq_dlg_flag = 0
+        self._last_sq_npc_id = 0
         self.dialogue_state = None  # Set externally by TownMod
 
     def tick(self, mem):
@@ -167,6 +170,53 @@ class AllySwitchState:
         elif frames >= 50:
             self.area_changed = False
             self.area_entered_check = False
+
+        # Building enter/exit → set dialogue options (runs for both Toan and allies)
+        from mods.dialogues import set_dialogue_options
+        building_val = mem.read_byte(BUILDING_CHECK)
+        if (building_val == 0 and self.building_flag) or self.area_changed:
+            set_dialogue_options(mem, self.current_area, False)
+            self.building_flag = False
+            self.area_changed = False
+        elif building_val == 1 and not self.building_flag:
+            if self.current_area != 23:
+                set_dialogue_options(mem, self.current_area, True)
+                self.building_flag = True
+            else:
+                npc_type = mem.read_byte(0x21D26FD4)
+                if npc_type in (0, 1):
+                    set_dialogue_options(mem, self.current_area, True)
+                    self.building_flag = True
+
+        # Toan sidequest detection (areas 0-3)
+        if not self.is_using_ally:
+            area = self.current_area
+            if area not in (38, 19):
+                dlg_id = TOWN_DIALOGUE_IDS[area] if area < len(TOWN_DIALOGUE_IDS) else 0
+                if dlg_id > 0:
+                    mem.write_short(0x21D3D434, dlg_id)
+            _SQ_DLG_IDS = {0: 107, 1: 107, 2: 127, 3: 147}
+            sq_id = _SQ_DLG_IDS.get(area, 0)
+            if area in (0, 1, 2, 3):
+                cur_dlg = mem.read_byte(DIALOGUE_ID_ADDR)
+                sq_trigger = 15 if area == 2 else 11
+                if not self.sidequest_option_flag and cur_dlg == sq_trigger:
+                    self.sidequest_option_flag = True
+                elif self.sidequest_option_flag and cur_dlg == 255:
+                    self.sidequest_option_flag = False
+                    self._sq_dialogue_active = False
+                    self._sq_dlg_flag = 0
+                if self.sidequest_option_flag and sq_id:
+                    mem.write_int(0x21D3D440, sq_id)
+                    self._set_sidequest_dialogue(mem)
+                    cur_dlg_s = mem.read_short(DIALOGUE_ID_ADDR)
+                    if cur_dlg_s == sq_id and not self._sq_dialogue_active:
+                        self._check_sidequest_dialogue(mem)
+                        self._sq_dialogue_active = True
+                    elif cur_dlg_s != sq_id:
+                        self._sq_dialogue_active = False
+                elif not self.sidequest_option_flag:
+                    self._sq_dlg_flag = 0
 
         # Location change — swap back to Toan
         if (mem.read_byte(LOCATION_CHANGE) != 255 and
@@ -242,6 +292,84 @@ class AllySwitchState:
                     self.on_dialogue_flag = 0
                 if self.on_dialogue_flag == 2 and cur_dlg == 255:
                     self.on_dialogue_flag = 3
+
+                # Sidequest option detection — ally path (shopkeeper NPCs)
+                _SQ_DLG_IDS = {0: 107, 1: 107, 2: 127, 3: 147}
+                sq_id = _SQ_DLG_IDS.get(area, 0)
+                if not self.sidequest_option_flag and cur_dlg == 12:
+                    self.sidequest_option_flag = True
+                elif self.sidequest_option_flag and cur_dlg == 255:
+                    self.sidequest_option_flag = False
+                    self._sq_dialogue_active = False
+                    self._sq_dlg_flag = 0
+
+                if self.sidequest_option_flag and sq_id:
+                    mem.write_int(0x21D3D43C, sq_id)
+                    self._set_sidequest_dialogue(mem)
+                    cur_dlg_s = mem.read_short(DIALOGUE_ID_ADDR)
+                    if cur_dlg_s == sq_id and not self._sq_dialogue_active:
+                        self._check_sidequest_dialogue(mem)
+                        self._sq_dialogue_active = True
+                    elif cur_dlg_s != sq_id:
+                        self._sq_dialogue_active = False
+                elif not self.sidequest_option_flag:
+                    self._sq_dlg_flag = 0
+
+    def _set_sidequest_dialogue(self, mem):
+        """Re-scan NPC proximity and write sidequest dialogue. Matches C# SetSideQuestDialogue."""
+        active = _check_near_npc(mem)
+        for slot in active:
+            if self._sq_dlg_flag == 0 and self.dialogue_state:
+                self.dialogue_state.set_dialogue(mem, slot, False, True)
+                mem.write_byte(0x21F10010, 1)
+                self._sq_dlg_flag = 1
+                # Store NPC ID for CheckSideQuestDialogue
+                npc_addr = slot * NPC_STRIDE + 0x21D26FD9
+                self._last_sq_npc_id = mem.read_short(npc_addr)
+                log.debug("Sidequest dialogue set for NPC %d", self._last_sq_npc_id)
+
+    def _check_sidequest_dialogue(self, mem):
+        """Handle quest state when player views sidequest dialogue. Matches C# CheckSideQuestDialogue."""
+        self.sidequest_option_flag = False
+        npc_id = self._last_sq_npc_id
+        if not npc_id:
+            return
+        from mods.sidequests import QUEST_ADDRS, FISH_QUEST_ADDRS, _FISH_NPC_CONFIG
+
+        # Monster quest NPCs
+        if npc_id in QUEST_ADDRS:
+            unlock_addrs = {12592: 0x21CE4474, 13618: 0x21CE4476,
+                            13108: 0x21CE4478, 14388: 0x21CE447A}
+            progress_addrs = {12592: 0x21CE4402, 13618: 0x21CE4407,
+                              13108: 0x21CE440C, 14388: 0x21CE4411}
+            unlock = unlock_addrs.get(npc_id)
+            progress = progress_addrs.get(npc_id)
+            if unlock and progress:
+                if mem.read_byte(unlock) == 1:
+                    p = mem.read_byte(progress)
+                    if p == 0:
+                        mem.write_byte(progress, 1)
+                    elif p == 2:
+                        from mods.sidequests import monster_quest_reward
+                        monster_quest_reward(mem)
+                        mem.write_byte(progress, 0)
+                else:
+                    mem.write_byte(unlock, 1)
+            log.debug("CheckSideQuestDialogue: monster NPC %d", npc_id)
+
+        # Fishing quest NPCs
+        elif npc_id in FISH_QUEST_ADDRS:
+            cfg = _FISH_NPC_CONFIG.get(npc_id)
+            if cfg:
+                if mem.read_byte(cfg['unlock']) == 1:
+                    p = mem.read_byte(cfg['progress'])
+                    if p == 0:
+                        mem.write_byte(cfg['progress'], 1)
+                    elif p == 2:
+                        mem.write_byte(cfg['progress'], 0)
+                else:
+                    mem.write_byte(cfg['unlock'], 1)
+            log.debug("CheckSideQuestDialogue: fishing NPC %d", npc_id)
 
     def _check_building(self, mem, area):
         """Check georama building completion for ally entry."""
