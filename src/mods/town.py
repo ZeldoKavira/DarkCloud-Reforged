@@ -151,7 +151,6 @@ class TownMod(ModBase):
                 btn = self.mem.read_short(addr.BUTTON_INPUTS)
                 l3_now = bool(btn & 0x0200)
                 if l3_now and not getattr(self, '_l3_held', False):
-                    log.info("L3 pressed in town, btn=0x%04X, calling georama display", btn)
                     self._show_georama_requests()
                 self._l3_held = l3_now
             except Exception as e:
@@ -369,10 +368,17 @@ class TownMod(ModBase):
         if area < 0 or area >= len(AREAS):
             return
         houses = AREAS[area]
+        # CommonMenuAtoraInfo: first int = house count, then per-house satisfaction flags
+        atora_ptr = self.mem.read_int(0x202A2ECC)
+        atora = 0x20000000 + (atora_ptr & 0x1FFFFFF) if atora_ptr else 0
+        # Read all 24 satisfaction flags
+        flags = []
+        if atora:
+            for j in range(24):
+                flags.append(self.mem.read_int(atora + 4 + j * 4))
         lines = ["^Y" + AREA_NAMES[area]]
-        for house_id, (name, requests) in enumerate(houses):
-            comp_addr = 0x21D19C58 + house_id * 0xE8
-            done = self.mem.read_byte(comp_addr) != 0
+        for name, requests, fidx in houses:
+            done = bool(flags[fidx]) if fidx < len(flags) else False
             color = "^G" if done else "^R"
             for req in requests:
                 lines.append(color + name + ": ^W" + req)

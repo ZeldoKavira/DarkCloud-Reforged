@@ -50,6 +50,53 @@ FISH_STRIDE = 0x2410
 CATCH_CHECK = 0x202A26E8  # == 12 when fish is being reeled in
 FISH_FLAG_BASE = 0x21CE4439
 
+# Fish ID → name (matches C# allfish array)
+_FISH_NAMES = [
+    "Bobo", "Gobbler", "Nonky", "Kaiji", "Baku Baku", "Mardan Garayan",
+    "Gummy", "Niler", None, "Umadakara", "Tarton", "Piccoly",
+    "Bon", "Hamahama", "Negie", "Den", "Heela", "Baron Garayan",
+]
+
+
+def get_pond_fish(mem, area):
+    """Read fish IDs from the pond and return list of fish names."""
+    cfg = _AREA_CONFIG.get(area)
+    if not cfg:
+        return []
+    names = []
+    addr = cfg['fish_base']
+    for _ in range(cfg['count']):
+        fid = mem.read_byte(addr)
+        if fid < len(_FISH_NAMES) and _FISH_NAMES[fid]:
+            names.append(_FISH_NAMES[fid])
+        addr += FISH_STRIDE
+    return names
+
+
+def get_pond_status(mem, area):
+    """Return overlay text showing each fish and its current state."""
+    cfg = _AREA_CONFIG.get(area)
+    if not cfg:
+        return None
+    lines = ["^YFish in pond:"]
+    base = cfg['fish_base']
+    for i in range(cfg['count']):
+        slot = base + i * FISH_STRIDE
+        fid = mem.read_byte(slot)
+        if fid == 255:
+            continue  # caught / empty slot
+        if fid >= len(_FISH_NAMES) or not _FISH_NAMES[fid]:
+            continue
+        name = _FISH_NAMES[fid]
+        state = _read_state(mem, slot + _AI_STATE)
+        if state == 8:
+            lines.append(f"^R  !! {name} - BITE !!")
+        elif state in (6, 7):
+            lines.append(f"^Y  > {name} - interested")
+        else:
+            lines.append(f"^W  {name}")
+    return "\n".join(lines) if len(lines) > 1 else "^WNo fish remaining"
+
 # Fish AI object offsets (from Step__5CFishFv)
 _AI_STATE = 0x50       # piVar6[0x14] — fish behavior state
 _AI_MOVE_MODE = 0x4C   # piVar6[0x13] — 0=idle, 1=swim, 2=fast swim
@@ -58,6 +105,42 @@ _AI_TIMER2 = 0x58      # piVar6[0x16] — state transition timer
 _AI_BAIT_IDX = 0x88    # bait type index, <0 means fish ignores bait
 _FISH_PTR = 0x202A2B58 # global Fish pointer
 _FISH_AI_COUNT = 6     # max fish AI objects
+
+# Bait radius — instruction at 0x20240364 (lui v0, imm16)
+# PNACH writes 0x3C024000 (2.0f) every frame; we overwrite each tick
+_BAIT_RADIUS_ADDR = 0x20240364
+_LUI_V0 = 0x3C020000
+# Progressive radius steps: 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0
+_RADIUS_STEPS = [0x4000, 0x4040, 0x4080, 0x40A0, 0x40C0, 0x4100, 0x4140]
+_BOOST_INTERVAL = 2.0
+
+
+def progressive_attract(mem, area, last_boost_time, boost_idx):
+    """Progressively increase bait detection radius if no fish is pursuing.
+    Returns (updated_time, updated_idx)."""
+    cfg = _AREA_CONFIG.get(area)
+    if not cfg:
+        return last_boost_time, boost_idx
+
+    base = cfg['fish_base']
+    for i in range(cfg['count']):
+        state = _read_state(mem, base + i * FISH_STRIDE + _AI_STATE)
+        if state in (6, 7, 8):
+            return None, 0
+
+    now = time.time()
+    if last_boost_time is None:
+        return now, boost_idx
+
+    if now - last_boost_time < _BOOST_INTERVAL:
+        # Still write current step every tick to beat the PNACH
+        if boost_idx > 0:
+            mem.write_int(_BAIT_RADIUS_ADDR, _LUI_V0 | _RADIUS_STEPS[boost_idx])
+        return last_boost_time, boost_idx
+
+    new_idx = min(boost_idx + 1, len(_RADIUS_STEPS) - 1)
+    mem.write_int(_BAIT_RADIUS_ADDR, _LUI_V0 | _RADIUS_STEPS[new_idx])
+    return now, new_idx
 
 
 def fish_acquired_flag(mem, fish_id):

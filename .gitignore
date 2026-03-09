@@ -5,3 +5,5 @@ dist/
 *.spec
 port_structs.py
 /dev-files
+
+scripts/deploy-deck.sh

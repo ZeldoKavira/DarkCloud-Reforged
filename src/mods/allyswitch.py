@@ -102,6 +102,8 @@ class AllySwitchState:
         self.area_entered_clock = False
         self.building_flag = False
         self.fishing_active = False
+        self._fish_boost_time = None
+        self._fish_boost_idx = 0
         self.currently_in_shop = False
         self.shop_data_cleared = False
         self.sidequest_option_flag = False
@@ -231,11 +233,30 @@ class AllySwitchState:
 
         # Fishing detection
         fishing = mem.read_byte(FISHING_FLAG) == 1
-        if fishing and not self.fishing_active:
-            self.fishing_active = True
-            log.info("Fishing mode entered")
-        elif not fishing:
+        if fishing:
+            if not self.fishing_active:
+                self.fishing_active = True
+                self._fish_boost_time = None
+                log.info("Fishing mode entered")
+            try:
+                from mods.fishing import get_pond_status, progressive_attract
+                from ui.overlay import show_text
+                text = get_pond_status(mem, self.current_area)
+                if text:
+                    show_text(text)
+                self._fish_boost_time, self._fish_boost_idx = progressive_attract(
+                    mem, self.current_area, self._fish_boost_time, self._fish_boost_idx)
+            except Exception:
+                pass
+        elif self.fishing_active:
             self.fishing_active = False
+            self._fish_boost_time = None
+            self._fish_boost_idx = 0
+            try:
+                from ui.overlay import hide_text
+                hide_text()
+            except Exception:
+                pass
 
         # Shop detection
         if not self.currently_in_shop:
