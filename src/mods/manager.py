@@ -98,6 +98,8 @@ class ModManager:
 
             # Detect entering in-game
             if not self._ingame and game_mode in (addr.Mode.TOWN, addr.Mode.DUNGEON, addr.Mode.CUTSCENE):
+                time.sleep(0.1)
+                game_mode = self.mem.read_byte(addr.MODE)
                 if game_mode == addr.Mode.CUTSCENE:
                     # New game — set enhanced save flag + intro text
                     time.sleep(0.8)
@@ -106,9 +108,9 @@ class ModManager:
                     from mods.dialogues import intro_text_at_norune
                     intro_text_at_norune(self.mem)
                     log.info("New game detected, set enhanced save flag")
-                    self._start_mods()
-                    self._ingame = True
-                elif snap.flags.enhanced_save:
+
+                # Check flag (may have just been set above for new game)
+                if self.mem.read_byte(addr.ENHANCED_MOD_SAVE_FLAG) == 1:
                     log.info("Entering in-game, starting mod subsystems")
                     self._apply_saved_options()
                     self._start_mods()
