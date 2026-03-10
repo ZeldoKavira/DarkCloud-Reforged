@@ -12,6 +12,7 @@ INI_NAME="SCUS-97111_A5C05C78.ini"
 SCRIPT_URL="https://raw.githubusercontent.com/$MOD_REPO/main/scripts/steamdeck-setup.sh"
 LOCAL_SCRIPT="$BASE_DIR/steamdeck-setup.sh"
 VERSION_FILE="$BASE_DIR/.mod-version"
+UPDATE_CONFIG="$BASE_DIR/update-config.cfg"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 info()  { echo -e "\e[1;34m[INFO]\e[0m $*"; }
@@ -20,19 +21,47 @@ error() { echo -e "\e[1;31m[ERROR]\e[0m $*"; }
 
 mkdir -p "$BASE_DIR"
 
+# ── Update config ────────────────────────────────────────────────────────────
+# Create default config if it doesn't exist
+if [[ ! -f "$UPDATE_CONFIG" ]]; then
+    cat > "$UPDATE_CONFIG" <<'CFGEOF'
+# Dark Cloud Reforged - Update Configuration
+# Set to "false" to disable auto-updates for that component.
+
+# Auto-update the PCSX2 game settings INI
+auto_update_gamesettings=true
+
+# Auto-update the mod binary and PNACH cheats file
+auto_update_mod=true
+
+# Auto-update this launcher script
+auto_update_script=true
+CFGEOF
+    info "Created update config at $UPDATE_CONFIG"
+fi
+
+# Read config values (default to true if missing)
+auto_update_gamesettings=true
+auto_update_mod=true
+auto_update_script=true
+source "$UPDATE_CONFIG"
+
 # ── 0. Self-install & self-update ────────────────────────────────────────────
-# Always download the latest script from the repo
-if curl -fsSL -o "$LOCAL_SCRIPT.tmp" "$SCRIPT_URL" 2>/dev/null; then
-    if ! cmp -s "$LOCAL_SCRIPT.tmp" "$LOCAL_SCRIPT" 2>/dev/null; then
-        mv "$LOCAL_SCRIPT.tmp" "$LOCAL_SCRIPT"
-        chmod +x "$LOCAL_SCRIPT"
-        info "Script updated."
+if [[ "$auto_update_script" == "true" ]]; then
+    if curl -fsSL -o "$LOCAL_SCRIPT.tmp" "$SCRIPT_URL" 2>/dev/null; then
+        if ! cmp -s "$LOCAL_SCRIPT.tmp" "$LOCAL_SCRIPT" 2>/dev/null; then
+            mv "$LOCAL_SCRIPT.tmp" "$LOCAL_SCRIPT"
+            chmod +x "$LOCAL_SCRIPT"
+            info "Script updated."
+        else
+            rm -f "$LOCAL_SCRIPT.tmp"
+        fi
     else
         rm -f "$LOCAL_SCRIPT.tmp"
+        warn "Could not check for script updates."
     fi
 else
-    rm -f "$LOCAL_SCRIPT.tmp"
-    warn "Could not check for script updates."
+    info "Script auto-update disabled."
 fi
 
 # If we're not running from the installed location, hand off to it
@@ -61,7 +90,8 @@ fi
 
 # ── 2. Download latest Linux mod release ─────────────────────────────────────
 MOD_BIN="$BASE_DIR/DarkCloud-Reforged"
-info "Fetching latest mod release..."
+if [[ "$auto_update_mod" == "true" ]]; then
+    info "Fetching latest mod release..."
 
 LATEST_URL=$(curl -s "https://api.github.com/repos/$MOD_REPO/releases/latest" \
     | grep -o '"browser_download_url": *"[^"]*Linux[^"]*\.zip"' \
@@ -102,6 +132,13 @@ else
     error "Could not find a Linux release. Check https://github.com/$MOD_REPO/releases"
     exit 1
 fi
+else
+    info "Mod auto-update disabled."
+    if [[ ! -f "$MOD_BIN" ]]; then
+        error "No mod binary found and auto-update is disabled."
+        exit 1
+    fi
+fi
 
 # ── 3. Check for ISO ────────────────────────────────────────────────────────
 while [[ ! -f "$BASE_DIR/$ISO_NAME" ]]; do
@@ -117,17 +154,25 @@ info "ISO found."
 # ── 4. Install game settings INI ────────────────────────────────────────────
 GS_DIR="$PCSX2_CONFIG/gamesettings"
 mkdir -p "$GS_DIR"
-info "Downloading game settings INI..."
-if curl -fsSL -o "$GS_DIR/$INI_NAME.tmp" \
-    "https://raw.githubusercontent.com/$MOD_REPO/main/pcsx2-files/$INI_NAME"; then
-    mv "$GS_DIR/$INI_NAME.tmp" "$GS_DIR/$INI_NAME"
-    info "Game settings INI updated."
-elif [[ -f "$GS_DIR/$INI_NAME" ]]; then
-    rm -f "$GS_DIR/$INI_NAME.tmp"
-    warn "Download failed, using existing INI."
+if [[ "$auto_update_gamesettings" == "true" ]]; then
+    info "Downloading game settings INI..."
+    if curl -fsSL -o "$GS_DIR/$INI_NAME.tmp" \
+        "https://raw.githubusercontent.com/$MOD_REPO/main/pcsx2-files/$INI_NAME"; then
+        mv "$GS_DIR/$INI_NAME.tmp" "$GS_DIR/$INI_NAME"
+        info "Game settings INI updated."
+    elif [[ -f "$GS_DIR/$INI_NAME" ]]; then
+        rm -f "$GS_DIR/$INI_NAME.tmp"
+        warn "Download failed, using existing INI."
+    else
+        error "Could not download INI and no existing version found."
+        exit 1
+    fi
 else
-    error "Could not download INI and no existing version found."
-    exit 1
+    info "Game settings INI auto-update disabled."
+    if [[ ! -f "$GS_DIR/$INI_NAME" ]]; then
+        error "No game settings INI found and auto-update is disabled."
+        exit 1
+    fi
 fi
 
 # ── 5. Check BIOS ───────────────────────────────────────────────────────────
@@ -146,17 +191,25 @@ info "BIOS found."
 # ── 6. Install PNACH (cheats) ───────────────────────────────────────────────
 CHEATS_DIR="$PCSX2_CONFIG/cheats"
 mkdir -p "$CHEATS_DIR"
-info "Downloading PNACH from repo..."
-if curl -fsSL -o "$CHEATS_DIR/$PNACH_NAME.tmp" \
-    "https://raw.githubusercontent.com/$MOD_REPO/main/pcsx2-files/$PNACH_NAME"; then
-    mv "$CHEATS_DIR/$PNACH_NAME.tmp" "$CHEATS_DIR/$PNACH_NAME"
-    info "PNACH updated."
-elif [[ -f "$CHEATS_DIR/$PNACH_NAME" ]]; then
-    rm -f "$CHEATS_DIR/$PNACH_NAME.tmp"
-    warn "Download failed, using existing PNACH."
+if [[ "$auto_update_mod" == "true" ]]; then
+    info "Downloading PNACH from repo..."
+    if curl -fsSL -o "$CHEATS_DIR/$PNACH_NAME.tmp" \
+        "https://raw.githubusercontent.com/$MOD_REPO/main/pcsx2-files/$PNACH_NAME"; then
+        mv "$CHEATS_DIR/$PNACH_NAME.tmp" "$CHEATS_DIR/$PNACH_NAME"
+        info "PNACH updated."
+    elif [[ -f "$CHEATS_DIR/$PNACH_NAME" ]]; then
+        rm -f "$CHEATS_DIR/$PNACH_NAME.tmp"
+        warn "Download failed, using existing PNACH."
+    else
+        error "Could not download PNACH and no existing version found."
+        exit 1
+    fi
 else
-    error "Could not download PNACH and no existing version found."
-    exit 1
+    info "PNACH auto-update disabled."
+    if [[ ! -f "$CHEATS_DIR/$PNACH_NAME" ]]; then
+        error "No PNACH found and auto-update is disabled."
+        exit 1
+    fi
 fi
 
 # ── 7. Add to Steam ─────────────────────────────────────────────────────────
