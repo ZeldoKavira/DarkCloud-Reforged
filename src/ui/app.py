@@ -399,6 +399,8 @@ class App:
         self.root.destroy()
 
     def run(self):
+        from ui.overlay import start_overlay
+        start_overlay(self.root)
         self.manager.start()
         self.root.mainloop()
 
