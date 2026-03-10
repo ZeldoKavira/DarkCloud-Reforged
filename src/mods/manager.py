@@ -9,7 +9,7 @@ from core.memory import Memory
 from game.game_state import GameState, GameSnapshot
 from game import addresses as addr
 from mods.shop import ShopMod
-from mods.weapons import WeaponsMod, SynthSphereMod, WeaponRerollMod
+from mods.weapons import WeaponsMod, SynthSphereMod, WeaponRerollMod, AttachmentOverlayMod
 from mods.dungeon import DungeonMod
 from mods.town import TownMod, ElementSwapMod
 from mods.cheatcodes import CheatCodesMod
@@ -42,6 +42,7 @@ class ModManager:
         self.weapons = WeaponsMod(mem)
         self.synth_sphere = SynthSphereMod(mem)
         self.weapon_reroll = WeaponRerollMod(mem)
+        self.attach_overlay = AttachmentOverlayMod(mem)
         self.dungeon = DungeonMod(mem)
         self.town = TownMod(mem)
         self.element_swap = ElementSwapMod(mem)
@@ -49,7 +50,9 @@ class ModManager:
 
         self.all_mods = [
             self.shop, self.weapons, self.synth_sphere, self.weapon_reroll,
-            self.dungeon, self.town, self.element_swap, self.cheat_codes,
+            self.attach_overlay,
+            self.dungeon, self.town,
+            self.element_swap, self.cheat_codes,
         ]
 
     def start(self):

@@ -29,6 +29,7 @@ POLL_MS = 200
 TRACK_MS = 100
 HIDE_AFTER_S = 8
 FONT = ("Arial", 14, "bold")
+FONT_SMALL = ("Arial", 10, "italic")
 OUTLINE = 2
 COLORS = {"W":"white","Y":"#FFD700","G":"#44DD44","R":"#FF4444","B":"#4488FF","O":"#FF8800"}
 BG = "#111111"
@@ -176,12 +177,12 @@ def _check_msg():
         pass
     root.after(POLL_MS, _check_msg)
 
-def _outlined_text(cx, cy, txt, fill):
+def _outlined_text(cx, cy, txt, fill, font=FONT):
     for dx in range(-OUTLINE, OUTLINE+1):
         for dy in range(-OUTLINE, OUTLINE+1):
             if dx or dy:
-                canvas.create_text(cx+dx, cy+dy, text=txt, font=FONT, fill="black", anchor="nw")
-    canvas.create_text(cx, cy, text=txt, font=FONT, fill=fill, anchor="nw")
+                canvas.create_text(cx+dx, cy+dy, text=txt, font=font, fill="black", anchor="nw")
+    canvas.create_text(cx, cy, text=txt, font=font, fill=fill, anchor="nw")
 
 def _render(text, ox=ANCHOR_X, oy=ANCHOR_Y):
     global _overlay_w, _overlay_h, _anchor_x, _anchor_y
@@ -191,27 +192,34 @@ def _render(text, ox=ANCHOR_X, oy=ANCHOR_Y):
     lines = []
     cur_line = []
     color = "W"
+    small = False
     i = 0
     while i < len(text):
         if text[i] == "^" and i+1 < len(text) and text[i+1] in COLORS:
             color = text[i+1]; i += 2; continue
+        if text[i] == "^" and i+1 < len(text) and text[i+1] == "s":
+            small = True; i += 2; continue
         if text[i] == "\n":
             lines.append(cur_line); cur_line = []; i += 1; continue
         j = i+1
-        while j < len(text) and text[j] != "\n" and not (text[j] == "^" and j+1 < len(text) and text[j+1] in COLORS):
+        while j < len(text) and text[j] != "\n" and not (text[j] == "^" and j+1 < len(text) and (text[j+1] in COLORS or text[j+1] == "s")):
             j += 1
-        cur_line.append((text[i:j], color)); i = j
+        cur_line.append((text[i:j], color, small)); i = j
     lines.append(cur_line)
     pad = 8
     cy = pad
     max_w = 0
     for segs in lines:
         cx = pad
-        for txt, c in segs:
-            _outlined_text(cx, cy, txt, COLORS[c])
-            cx += tk.font.Font(font=FONT).measure(txt)
+        line_h = 24
+        for txt, c, sm in segs:
+            f = FONT_SMALL if sm else FONT
+            _outlined_text(cx, cy, txt, COLORS[c], f)
+            cx += tk.font.Font(font=f).measure(txt)
+            if sm:
+                line_h = 18
         max_w = max(max_w, cx)
-        cy += 24
+        cy += line_h
     _overlay_w = min(max(int(max_w) + pad*2, 250), 800)
     _overlay_h = cy + pad
     # Position relative to game window

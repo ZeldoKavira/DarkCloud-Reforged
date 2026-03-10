@@ -382,6 +382,8 @@ class TownMod(ModBase):
             color = "^G" if done else "^R"
             for req in requests:
                 lines.append(color + name + ": ^W" + req)
+        if not any(bool(flags[fidx]) for _, _, fidx in houses if fidx < len(flags)):
+            lines.append('^sYou must open "Georama Analysis" at least once per session.')
         show_text("\n".join(lines))
 
     def _display_town_message(self, text, duration=300):

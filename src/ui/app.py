@@ -131,7 +131,7 @@ class App:
         self.loc_panel = self._panel(right, "Location")
         self.loc_fields = self._add_fields(self.loc_panel, [
             "Area", "Floor", "Dungeon Mode", "Back Floor", "Paused", "Cleared", "Limit Zone",
-            "Time of Day", "Day",
+            "Time of Day", "Day", "House ID",
         ])
 
         self.mod_panel = self._panel(right, "Mod Subsystems")
@@ -145,7 +145,7 @@ class App:
             "Disable Beep", "Disable Battle Music", "Widescreen",
             "Graphics Enhance", "Disable Attack Sounds", "Mute All Music",
             "Instant Fishing", "Disable Dungeon Limited Zones", "Disable Bad Magic Circles",
-            "Repair Powder is Automatic",
+            "Repair Powder is Automatic", "Disable Character Doors",
         ])
 
         # Log area (fixed at bottom, outside scroll)
@@ -235,6 +235,8 @@ class App:
             mem.write_byte(addr.OPTION_SAVE_GOOD_CIRCLES, val)
         elif label == "Repair Powder is Automatic":
             mem.write_byte(addr.OPTION_SAVE_REPAIR_FALLBACK, val)
+        elif label == "Disable Character Doors":
+            mem.write_byte(addr.OPTION_SAVE_NO_CHARA_DOORS, val)
 
     def _on_state_update(self, snap: GameSnapshot):
         """Called from poll thread — schedule UI update on main thread."""
@@ -299,6 +301,7 @@ class App:
             self._set(self.loc_fields, "Cleared", "—")
             self._set(self.loc_fields, "Time of Day", str(t.time_of_day))
             self._set(self.loc_fields, "Day", str(t.current_day))
+            self._set(self.loc_fields, "House ID", str(t.building_id))
         elif snap.game_mode == 3:  # Dungeon
             d = snap.dungeon
             self._set(self.loc_fields, "Area", d.dungeon_name)
@@ -315,6 +318,7 @@ class App:
                 self._set(self.loc_fields, "Limit Zone", str(lz), RED)
             self._set(self.loc_fields, "Time of Day", "—")
             self._set(self.loc_fields, "Day", "—")
+            self._set(self.loc_fields, "House ID", "—")
         else:
             for key in self.loc_fields:
                 self._set(self.loc_fields, key, "—")

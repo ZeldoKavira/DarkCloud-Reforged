@@ -320,3 +320,68 @@ class WeaponRerollMod(ModBase):
 
         except Exception as e:
             log.debug("Reroll error: %s", e)
+
+
+class AttachmentOverlayMod(ModBase):
+    """Shows attachment stats overlay when hovering items in customize menu or FP shop."""
+    name = "Attachment Overlay"
+
+    def run(self):
+        self._last_id = -1
+        while self._running:
+            item_id = self._get_hovered_item()
+            if item_id is None:
+                if self._last_id != -1:
+                    self._hide()
+                    self._last_id = -1
+                time.sleep(0.1)
+                continue
+            if item_id != self._last_id:
+                self._last_id = item_id
+                self._show_stats(item_id)
+            time.sleep(0.064)
+
+    def _get_hovered_item(self):
+        """Return item ID if hovering an attachment in customize menu or FP shop."""
+        try:
+            menu = self.mem.read_byte(addr.SELECTED_MENU)
+            wmode = self.mem.read_byte(addr.WEAPONS_MODE)
+            # Customize menu: cursor on attachment bag
+            if menu == 2 and wmode == 10:
+                slot = self.mem.read_byte(addr.WEAPON_MENU_LIST_INDEX)
+                return self.mem.read_short(addr.FIRST_BAG_ATTACHMENT + slot * 0x20)
+            # Regular shop: read hovered item from display slots
+            if self.mem.read_byte(0x21DA52E4) == 1 and self.mem.read_byte(0x21DA52E8) == 11:
+                idx = self.mem.read_int(0x21D900E4)
+                item = self.mem.read_short(0x218377A0 + idx * 0xFC)
+                if item > 0:
+                    return item
+            # FP Exchange: a6 state=3 when browsing, cursor at 0x21D90394, item table at 0x202929D0
+            if self.mem.read_short(0x21D903A6) == 3:
+                idx = self.mem.read_short(0x21D903A4)
+                item = self.mem.read_short(0x202929D0 + idx * 4)
+                if item > 0:
+                    return item
+        except Exception:
+            pass
+        return None
+
+    def _show_stats(self, item_id):
+        from data.attachments import get_attachment_info
+        info = get_attachment_info(item_id)
+        if not info:
+            self._hide()
+            return
+        name, stats = info
+        lines = ["^Y" + name]
+        for sn, sv in stats:
+            lines.append(f"^W{sn}: ^G+{sv}")
+        from ui.overlay import show_text
+        show_text("\n".join(lines))
+
+    def _hide(self):
+        try:
+            from ui.overlay import hide_text
+            hide_text()
+        except Exception:
+            pass

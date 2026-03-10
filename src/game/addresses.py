@@ -148,6 +148,14 @@ WEAPON_MENU_TRANSITIONS = 0x21D9EA7C
 WEAPON_MENU_WEAPON_HOVER = 0x21D9EA74
 WEAPON_MENU_CHAR_HOVER = 0x21D9EA75
 WEAPON_MENU_LIST_INDEX = 0x21D9EA90
+FIRST_BAG_ATTACHMENT = 0x21CE1A48
+
+# Shop system
+SHOP_STATE = 0x21D90250       # short: nonzero when shop is active
+SHOP_MODE = 0x21D900DC        # int: 0=items, 1=weapons, 2=attachments
+SHOP_ITEM_INDEX = 0x21D900E4  # int: selected item index in current category
+SHOP_HAVE_ITEM_PT = 0x202A2CA8  # pointer to currently held/selected shop item struct
+SHOP_IS_CHARGE = 0x21D900D2   # short: 1 when in FP (charge) shop
 
 # --- Inputs ---
 BUTTON_INPUTS = 0x21CBC544
@@ -218,9 +226,13 @@ OPTION_SAVE_INSTANT_FISH = 0x21CE4496
 OPTION_SAVE_NO_LIMIT_ZONES = 0x21CE4497
 OPTION_SAVE_GOOD_CIRCLES = 0x21CE4498
 OPTION_SAVE_REPAIR_FALLBACK = 0x21CE4499
+OPTION_SAVE_NO_CHARA_DOORS = 0x21CE449A
 
 # Runtime limit zone flag (set by game per floor, 0=none, 10/11=restricted)
 LIMIT_ZONE_FLAG = 0x21CE205C
+
+# Character door type (set by game per floor, 0-5=character index, -1=none)
+CHARA_DOOR_TYPE = 0x21D564AC
 
 # Attack sound addresses and default values
 ATTACK_SOUND_ADDRS = [

@@ -142,6 +142,12 @@ class DungeonMod(ModBase):
                 if v != -1 and v != 0xFFFFFFFF:
                     self.mem.write_int(addr.LIMIT_ZONE_FLAG, 0xFFFFFFFF)
 
+            # Disable character doors if option enabled
+            if self.mem.read_byte(addr.OPTION_SAVE_NO_CHARA_DOORS) == 1:
+                v = self.mem.read_int(addr.CHARA_DOOR_TYPE)
+                if 0 <= v <= 5:
+                    self.mem.write_int(addr.CHARA_DOOR_TYPE, 0xFFFFFFFF)
+
             # Repair powder fallback: regular repair powder also auto-repairs
             repair_on = self.mem.read_byte(addr.OPTION_SAVE_REPAIR_FALLBACK) != 0
             cur_hook = self.mem.read_int(0x201B5F30)
@@ -169,7 +175,7 @@ class DungeonMod(ModBase):
 
             # All enemies killed message
             if self._all_enemies_killed() and not self.has_clear_msg_shown:
-                self._display_message("DUMMY", 0, 0, 4000, True)
+                self._display_message("All enemies defeated!", 0, 0, 4000, True)
                 self.has_clear_msg_shown = True
 
             self.current_dungeon = self.mem.read_byte(addr.DUNGEON_ID)

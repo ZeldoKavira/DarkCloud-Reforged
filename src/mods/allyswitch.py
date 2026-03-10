@@ -173,30 +173,45 @@ class AllySwitchState:
             self.area_changed = False
             self.area_entered_check = False
 
-        # Building enter/exit → set dialogue options (runs for both Toan and allies)
+        # Building enter/exit → set dialogue options + storage dialogue (C# TownCharacter)
         from mods.dialogues import set_dialogue_options
         building_val = mem.read_byte(BUILDING_CHECK)
         if (building_val == 0 and self.building_flag) or self.area_changed:
             set_dialogue_options(mem, self.current_area, False)
+            if hasattr(self, 'dialogue_state') and self.dialogue_state:
+                self.dialogue_state.storage_save(mem, self.current_area)
             self.building_flag = False
             self.area_changed = False
         elif building_val == 1 and not self.building_flag:
             if self.current_area != 23:
                 set_dialogue_options(mem, self.current_area, True)
+                if hasattr(self, 'dialogue_state') and self.dialogue_state:
+                    self.dialogue_state.storage_restore(mem, self.current_area)
                 self.building_flag = True
             else:
                 npc_type = mem.read_byte(0x21D26FD4)
                 if npc_type in (0, 1):
                     set_dialogue_options(mem, self.current_area, True)
+                    if hasattr(self, 'dialogue_state') and self.dialogue_state:
+                        self.dialogue_state.storage_restore(mem, self.current_area)
                     self.building_flag = True
 
+        # Toan path — NPC proximity for PNACH dialogue ID switching
+        if not self.is_using_ally:
+            active = _check_near_npc(mem)
+            if active:
+                if not self.near_npc:
+                    self.near_npc = True
+                mem.write_byte(0x21F10008, 1)
+            else:
+                if self.near_npc:
+                    self.near_npc = False
+                mem.write_byte(0x21F10008, 0)
+
+        # Location change — swap back to Toan
         # Toan sidequest detection (areas 0-3)
         if not self.is_using_ally:
             area = self.current_area
-            if area not in (38, 19):
-                dlg_id = TOWN_DIALOGUE_IDS[area] if area < len(TOWN_DIALOGUE_IDS) else 0
-                if dlg_id > 0:
-                    mem.write_short(0x21D3D434, dlg_id)
             _SQ_DLG_IDS = {0: 107, 1: 107, 2: 127, 3: 147}
             sq_id = _SQ_DLG_IDS.get(area, 0)
             if area in (0, 1, 2, 3):
