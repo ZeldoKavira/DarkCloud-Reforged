@@ -142,11 +142,16 @@ class DungeonMod(ModBase):
                 if v != -1 and v != 0xFFFFFFFF:
                     self.mem.write_int(addr.LIMIT_ZONE_FLAG, 0xFFFFFFFF)
 
-            # Disable character doors if option enabled
-            if self.mem.read_byte(addr.OPTION_SAVE_NO_CHARA_DOORS) == 1:
-                v = self.mem.read_int(addr.CHARA_DOOR_TYPE)
-                if 0 <= v <= 5:
-                    self.mem.write_int(addr.CHARA_DOOR_TYPE, 0xFFFFFFFF)
+            # Disable character doors — NOP the instruction that sets door type
+            _CHARA_DOOR_INST = 0x201B47A4
+            _CHARA_DOOR_ORIG = 0xAC2464AC  # sw a0,0x64ac(at)
+            _NOP = 0x00000000
+            no_doors = self.mem.read_byte(addr.OPTION_SAVE_NO_CHARA_DOORS) == 1
+            cur = self.mem.read_int(_CHARA_DOOR_INST)
+            if no_doors and cur != _NOP:
+                self.mem.write_int(_CHARA_DOOR_INST, _NOP)
+            elif not no_doors and cur == _NOP:
+                self.mem.write_int(_CHARA_DOOR_INST, _CHARA_DOOR_ORIG)
 
             # Repair powder fallback: regular repair powder also auto-repairs
             repair_on = self.mem.read_byte(addr.OPTION_SAVE_REPAIR_FALLBACK) != 0

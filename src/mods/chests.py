@@ -124,6 +124,12 @@ def chest_randomizer(mem, dungeon, floor, chronicle2):
     has_map = _check_item_quest_reward(mem, 233)
     has_mc = _check_item_quest_reward(mem, 234)
 
+    # Save setting override: always grant map/MC
+    if mem.read_byte(addr.OPTION_SAVE_START_MAP) == 1:
+        has_map = True
+    if mem.read_byte(addr.OPTION_SAVE_START_MC) == 1:
+        has_mc = True
+
     # Determine offset from first chest
     first_item = mem.read_byte(addr.FIRST_CHEST)
     if first_item == 233:

@@ -146,6 +146,7 @@ class App:
             "Graphics Enhance", "Disable Attack Sounds", "Mute All Music",
             "Instant Fishing", "Disable Dungeon Limited Zones", "Disable Bad Magic Circles",
             "Repair Powder is Automatic", "Disable Character Doors",
+            "Start with Map", "Start with Magical Crystal",
         ])
 
         # Overlay toggles
@@ -267,6 +268,10 @@ class App:
             mem.write_byte(addr.OPTION_SAVE_REPAIR_FALLBACK, val)
         elif label == "Disable Character Doors":
             mem.write_byte(addr.OPTION_SAVE_NO_CHARA_DOORS, val)
+        elif label == "Start with Map":
+            mem.write_byte(addr.OPTION_SAVE_START_MAP, val)
+        elif label == "Start with Magical Crystal":
+            mem.write_byte(addr.OPTION_SAVE_START_MC, val)
 
     def _on_state_update(self, snap: GameSnapshot):
         """Called from poll thread — schedule UI update on main thread."""
