@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# .githooks/pre-push — validates changelog and version stamp when pushing tags.
+# Install: git config core.hooksPath .githooks
+
+while read local_ref local_sha remote_ref remote_sha; do
+    # Only check tag pushes
+    if [[ "$local_ref" == refs/tags/* ]]; then
+        TAG="${local_ref#refs/tags/}"
+        echo "Pushing tag $TAG — validating release..."
+
+        # Check changelog entry exists
+        if ! grep -q "\"$TAG\"" src/core/changelog.py 2>/dev/null; then
+            echo "ERROR: No changelog entry for $TAG in src/core/changelog.py"
+            echo "Run: ./scripts/gen-changelog.sh $TAG"
+            exit 1
+        fi
+
+        # Check version stamp
+        if ! grep -q "$TAG" src/core/_build_version.py 2>/dev/null; then
+            echo "ERROR: Version not stamped for $TAG in src/core/_build_version.py"
+            echo "Run: ./scripts/stamp-version.sh"
+            exit 1
+        fi
+
+        echo "Release checks passed for $TAG"
+    fi
+done

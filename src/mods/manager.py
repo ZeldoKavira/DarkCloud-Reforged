@@ -114,6 +114,7 @@ class ModManager:
                     log.info("Entering in-game, starting mod subsystems")
                     self._apply_saved_options()
                     self._start_mods()
+                    self._check_version_changelog()
                     self._ingame = True
                 else:
                     log.warning("Not a Reforged Mod save file!")
@@ -152,6 +153,24 @@ class ModManager:
         for mod in self.all_mods:
             mod.start()
         self._mods_started = True
+
+    def _check_version_changelog(self):
+        """Show changelog overlay if mod version changed since last run."""
+        try:
+            from core.version import get_version
+            from core.changelog import get_changes_since
+            from core.settings import get as get_setting, set as set_setting
+            from ui.overlay import show_text
+            current = get_version()
+            last = get_setting("last_version")
+            if current != "unknown" and last != current:
+                changes = get_changes_since(last)
+                if changes:
+                    header = f"^Y== Dark Cloud Reforged {current} ==\n"
+                    show_text(header + changes)
+                set_setting("last_version", current)
+        except Exception as e:
+            log.warning("Version check failed: %s", e)
 
     def _apply_saved_options(self):
         """Copy saved option flags to runtime addresses (C# ModWindowSettingsCheck)."""

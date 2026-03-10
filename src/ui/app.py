@@ -31,7 +31,8 @@ class App:
         self.manager = ModManager(state.mem, state)
 
         self.root = tk.Tk()
-        self.root.title("Dark Cloud Reforged")
+        from core.version import get_version
+        self.root.title(f"Dark Cloud Reforged {get_version()}")
         self.root.geometry("720x620")
         self.root.configure(bg=BG)
         self.root.resizable(True, True)
