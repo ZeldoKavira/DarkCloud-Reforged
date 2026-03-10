@@ -362,6 +362,9 @@ class TownMod(ModBase):
 
     def _show_georama_requests(self):
         """Display georama request info via overlay."""
+        from core.settings import get as get_setting
+        if not get_setting("overlay_georama"):
+            return
         from data.georama import AREAS, AREA_NAMES
         from ui.overlay import show_text
         area = self.mem.read_byte(addr.TOWN_AREA)

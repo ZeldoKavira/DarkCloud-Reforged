@@ -328,7 +328,11 @@ class AttachmentOverlayMod(ModBase):
 
     def run(self):
         self._last_id = -1
+        from core.settings import get as get_setting
         while self._running:
+            if not get_setting("overlay_attachments"):
+                time.sleep(0.5)
+                continue
             item_id = self._get_hovered_item()
             if item_id is None:
                 if self._last_id != -1:

@@ -256,9 +256,11 @@ class AllySwitchState:
             try:
                 from mods.fishing import get_pond_status, progressive_attract
                 from ui.overlay import show_text
-                text = get_pond_status(mem, self.current_area)
-                if text:
-                    show_text(text)
+                from core.settings import get as get_setting
+                if get_setting("overlay_fishing"):
+                    text = get_pond_status(mem, self.current_area)
+                    if text:
+                        show_text(text)
                 self._fish_boost_time, self._fish_boost_idx = progressive_attract(
                     mem, self.current_area, self._fish_boost_time, self._fish_boost_idx)
             except Exception:

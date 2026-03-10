@@ -148,6 +148,25 @@ class App:
             "Repair Powder is Automatic", "Disable Character Doors",
         ])
 
+        # Overlay toggles
+        self.overlay_panel = self._panel(sf, "Overlays")
+        self.overlay_checks = self._add_checkboxes(self.overlay_panel, [
+            "Fishing Overlay", "Attachment Stats Overlay", "Georama Overlay",
+        ])
+        # Init from settings
+        from core.settings import get as get_setting
+        _OVL_MAP = {
+            "Fishing Overlay": "overlay_fishing",
+            "Attachment Stats Overlay": "overlay_attachments",
+            "Georama Overlay": "overlay_georama",
+        }
+        for label, key in _OVL_MAP.items():
+            val = get_setting(key)
+            self.overlay_checks[label][0].set(bool(val))
+            self.overlay_checks[label][1].config(state=tk.NORMAL)
+            self.overlay_checks[label][1].config(
+                command=lambda l=label, v=self.overlay_checks[label][0]: self._on_overlay_toggle(l, v.get()))
+
         # Log area (fixed at bottom, outside scroll)
         log_frame = ttk.Frame(self.root)
         log_frame.pack(fill=tk.BOTH, expand=False, padx=10, pady=(0, 10))
@@ -198,6 +217,17 @@ class App:
             cb.pack(fill=tk.X, pady=1)
             checks[label] = (var, cb)
         return checks
+
+    def _on_overlay_toggle(self, label, checked):
+        from core.settings import set as set_setting
+        _OVL_MAP = {
+            "Fishing Overlay": "overlay_fishing",
+            "Attachment Stats Overlay": "overlay_attachments",
+            "Georama Overlay": "overlay_georama",
+        }
+        key = _OVL_MAP.get(label)
+        if key:
+            set_setting(key, checked)
 
     def _on_option_toggle(self, label, checked):
         from game import addresses as addr
