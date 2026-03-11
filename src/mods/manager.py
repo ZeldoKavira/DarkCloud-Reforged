@@ -158,14 +158,14 @@ class ModManager:
         """Show changelog overlay if mod version changed since last run."""
         try:
             from core.version import get_version
-            from core.changelog import get_changes_since
+            from core.changelog import get_changes_since, CHANGELOG
             from core.settings import get as get_setting, set as set_setting
             from ui.overlay import show_text
             current = get_version()
             last = get_setting("last_version")
             log.info("Version check: current=%s, last=%s", current, last)
             if current != "unknown" and last != current:
-                changes = get_changes_since(last)
+                changes = get_changes_since(last, include_current=current)
                 if changes:
                     header = f"^Y== Dark Cloud Reforged {current} ==\n"
                     show_text(header + changes, duration=20)

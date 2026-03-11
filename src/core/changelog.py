@@ -2,12 +2,8 @@
 
 CHANGELOG = {
     "v0.2.3": [
-        "* Add version changelog system",
-        "* Add version knowledge",
-        "* Add Map and MC cheats",
-    ],
-    "vdev-3feb0f0983fbc409a4417a9ffebdb8c1b5195c38..1": [
-        "* Add version knowledge",
+        "* Add Version changelog system",
+        "* Add Version Overlay",
         "* Add Map and MC cheats",
     ],
     "v0.2.1": [
@@ -30,14 +26,23 @@ CHANGELOG = {
 VERSIONS = sorted(CHANGELOG.keys(), reverse=True)
 
 
-def get_changes_since(old_version):
+def get_changes_since(old_version, include_current=None):
     """Return changelog text for all versions newer than old_version.
+    If include_current is set, always include that version's entry.
     If old_version is None/empty, shows the latest 3 versions."""
     lines = []
     count = 0
+    # Always include current version first if it has an entry
+    if include_current and include_current in CHANGELOG:
+        lines.append(f"^Y{include_current}")
+        for entry in CHANGELOG[include_current]:
+            lines.append(f"^W- {entry}")
+        count += 1
     for ver in VERSIONS:
         if count >= 3:
             break
+        if ver == include_current:
+            continue
         if old_version and ver <= old_version:
             break
         lines.append(f"^Y{ver}")
