@@ -1,6 +1,9 @@
 """Changelog entries keyed by version tag."""
 
 CHANGELOG = {
+    "v0.2.4": [
+        "* Fix issue with changlogs not showing for the latest version",
+    ],
     "v0.2.3": [
         "* Add Version changelog system",
         "* Add Version Overlay",
