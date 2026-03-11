@@ -1,6 +1,10 @@
 """Changelog entries keyed by version tag."""
 
 CHANGELOG = {
+    "vdev-3feb0f0983fbc409a4417a9ffebdb8c1b5195c38..1": [
+        "* Add version knowledge",
+        "* Add Map and MC cheats",
+    ],
     "v0.2.1": [
         "Added overlay settings (Fishing, Attachments, Georama)",
         "Added Start with Map / Magical Crystal options",
@@ -26,10 +30,15 @@ def get_changes_since(old_version):
     if not old_version or old_version == "unknown":
         return None
     lines = []
+    count = 0
     for ver in VERSIONS:
-        if ver <= old_version:
+        if ver <= old_version or count >= 3:
             break
         lines.append(f"^Y{ver}")
         for entry in CHANGELOG[ver]:
             lines.append(f"^W- {entry}")
-    return "\n".join(lines) if lines else None
+        count += 1
+    if not lines:
+        return None
+    lines.append("^s^WFull changelog at github.com/ZeldoKavira/DarkCloud-Reforged")
+    return "\n".join(lines)

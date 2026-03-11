@@ -22,8 +22,9 @@ _queue = queue.Queue()
 TRACK_MS = 250
 POLL_MS = 50
 HIDE_AFTER_S = 8
-FONT = ("Arial", 14, "bold")
-FONT_SMALL = ("Arial", 10, "italic")
+_hide_duration = HIDE_AFTER_S
+FONT = ("Arial", 12, "bold")
+FONT_SMALL = ("Arial", 9, "italic")
 OUTLINE = 2
 COLORS = {"W": "white", "Y": "#FFD700", "G": "#44DD44", "R": "#FF4444",
           "B": "#4488FF", "O": "#FF8800"}
@@ -166,7 +167,7 @@ def _tracker_thread():
 
 def _main_poll():
     """Runs on main Tk thread — drains the queue and handles auto-hide/reposition."""
-    global _visible
+    global _visible, _hide_duration
     if _win is None or _root is None:
         if _root is not None:
             _root.after(POLL_MS, _main_poll)
@@ -181,12 +182,13 @@ def _main_poll():
     if msg is not None:
         if msg[0] == "show":
             _render(msg[1], msg[2], msg[3])
+            _hide_duration = msg[4] if msg[4] is not None else HIDE_AFTER_S
         elif msg[0] == "hide":
             if _visible:
                 _win.withdraw()
                 _visible = False
     # Auto-hide
-    if _visible and time.time() - _show_time > HIDE_AFTER_S:
+    if _visible and time.time() - _show_time > _hide_duration:
         _win.withdraw()
         _visible = False
     # Reposition
@@ -240,9 +242,9 @@ def stop_overlay():
     _visible = False
 
 
-def show_text(text, x=10, y=10):
-    """Thread-safe. Queues text for the overlay."""
-    _queue.put(("show", text, x, y))
+def show_text(text, x=10, y=10, duration=None):
+    """Thread-safe. Queues text for the overlay. duration overrides HIDE_AFTER_S."""
+    _queue.put(("show", text, x, y, duration))
 
 
 def hide_text():

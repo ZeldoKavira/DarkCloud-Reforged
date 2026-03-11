@@ -167,7 +167,7 @@ class ModManager:
                 changes = get_changes_since(last)
                 if changes:
                     header = f"^Y== Dark Cloud Reforged {current} ==\n"
-                    show_text(header + changes)
+                    show_text(header + changes, duration=20)
                 set_setting("last_version", current)
         except Exception as e:
             log.warning("Version check failed: %s", e)

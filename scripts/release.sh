@@ -8,7 +8,8 @@ SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [[ -n "${1:-}" ]]; then
     NEW_TAG="$1"
 else
-    LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+    LAST_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)
+    [[ -z "$LAST_TAG" ]] && LAST_TAG="v0.0.0"
     # Parse vMAJOR.MINOR.PATCH and increment minor
     IFS='.' read -r major minor patch <<< "${LAST_TAG#v}"
     NEW_TAG="v${major}.${minor}.$((patch + 1))"
