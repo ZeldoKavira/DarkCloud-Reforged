@@ -163,6 +163,7 @@ class ModManager:
             from ui.overlay import show_text
             current = get_version()
             last = get_setting("last_version")
+            log.info("Version check: current=%s, last=%s", current, last)
             if current != "unknown" and last != current:
                 changes = get_changes_since(last)
                 if changes:

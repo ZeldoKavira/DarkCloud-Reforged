@@ -1,7 +1,7 @@
 """Changelog entries keyed by version tag."""
 
 CHANGELOG = {
-    "v0.2.2": [
+    "v0.2.3": [
         "* Add version changelog system",
         "* Add version knowledge",
         "* Add Map and MC cheats",
@@ -31,13 +31,14 @@ VERSIONS = sorted(CHANGELOG.keys(), reverse=True)
 
 
 def get_changes_since(old_version):
-    """Return changelog text for all versions newer than old_version."""
-    if not old_version or old_version == "unknown":
-        return None
+    """Return changelog text for all versions newer than old_version.
+    If old_version is None/empty, shows the latest 3 versions."""
     lines = []
     count = 0
     for ver in VERSIONS:
-        if ver <= old_version or count >= 3:
+        if count >= 3:
+            break
+        if old_version and ver <= old_version:
             break
         lines.append(f"^Y{ver}")
         for entry in CHANGELOG[ver]:
