@@ -15,13 +15,6 @@ while read local_ref local_sha remote_ref remote_sha; do
             exit 1
         fi
 
-        # Check version stamp
-        if ! grep -q "$TAG" src/core/_build_version.py 2>/dev/null; then
-            echo "ERROR: Version not stamped for $TAG in src/core/_build_version.py"
-            echo "Run: ./scripts/stamp-version.sh"
-            exit 1
-        fi
-
         echo "Release checks passed for $TAG"
     fi
 done

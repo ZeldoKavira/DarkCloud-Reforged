@@ -1,6 +1,11 @@
 """Changelog entries keyed by version tag."""
 
 CHANGELOG = {
+    "v0.2.2": [
+        "* Add version changelog system",
+        "* Add version knowledge",
+        "* Add Map and MC cheats",
+    ],
     "vdev-3feb0f0983fbc409a4417a9ffebdb8c1b5195c38..1": [
         "* Add version knowledge",
         "* Add Map and MC cheats",

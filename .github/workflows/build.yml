@@ -42,6 +42,10 @@ jobs:
       - name: Install PyInstaller
         run: pip install -r requirements-build.txt
 
+      - name: Stamp version
+        run: bash scripts/stamp-version.sh "${{ steps.version.outputs.tag }}"
+        shell: bash
+
       - name: Build executable
         run: >
           pyinstaller --onefile --name DarkCloud-Reforged --windowed

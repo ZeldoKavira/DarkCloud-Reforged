@@ -48,20 +48,16 @@ if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
     exit 1
 fi
 
-# 3. Stamp version
-echo "Stamping version..."
-bash "$SCRIPTS_DIR/stamp-version.sh"
-
-# 4. Commit
+# 3. Commit
 echo "Committing..."
-git add src/core/changelog.py src/core/_build_version.py
+git add src/core/changelog.py
 git commit -m "Release $NEW_TAG"
 
-# 5. Tag
+# 4. Tag
 echo "Tagging $NEW_TAG..."
 git tag "$NEW_TAG"
 
-# 6. Push
+# 5. Push
 echo "Pushing..."
 git push && git push --tags
 

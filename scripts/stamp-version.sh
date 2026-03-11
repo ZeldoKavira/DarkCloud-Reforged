@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# Stamp the current git tag into src/core/_build_version.py before building.
+# Stamp version into src/core/_build_version.py.
+# Usage: stamp-version.sh [tag]  (auto-detects from git if omitted)
 set -euo pipefail
-TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "unknown")
+if [[ -n "${1:-}" ]]; then
+    TAG="$1"
+else
+    TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)
+    [[ -z "$TAG" ]] && TAG="unknown"
+fi
 cat > src/core/_build_version.py <<EOF
 BUILD_VERSION = "$TAG"
 EOF

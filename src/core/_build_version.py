@@ -1,2 +1,1 @@
-import time
-BUILD_VERSION = f"dev-{int(time.time())}"
+BUILD_VERSION = "dev-3feb0f0983fbc409a4417a9ffebdb8c1b5195c38"
