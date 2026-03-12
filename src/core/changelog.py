@@ -1,6 +1,10 @@
 """Changelog entries keyed by version tag."""
 
 CHANGELOG = {
+    "v0.2.5": [
+        "* Change how fish radius is set",
+	"* Fix issue with checkboxes not populating properly",
+    ],
     "v0.2.4": [
         "* Fix issue with changlogs not showing for the latest version",
     ],
