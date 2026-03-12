@@ -269,6 +269,7 @@ class AllySwitchState:
             self.fishing_active = False
             self._fish_boost_time = None
             self._fish_boost_idx = 0
+            mem.write_byte(0x21F10050, 0)  # clear fish radius flag
             try:
                 from ui.overlay import hide_text
                 hide_text()

@@ -67,6 +67,9 @@ class ModFlags:
     option_no_limit_zones: bool = True
     option_good_circles: bool = True
     option_repair_fallback: bool = True
+    option_no_chara_doors: bool = False
+    option_start_map: bool = False
+    option_start_mc: bool = False
 
 
 @dataclass
@@ -198,6 +201,9 @@ class GameState:
         snap.flags.option_no_limit_zones = mem.read_byte(addr.OPTION_SAVE_NO_LIMIT_ZONES) == 1
         snap.flags.option_good_circles = mem.read_byte(addr.OPTION_SAVE_GOOD_CIRCLES) == 1
         snap.flags.option_repair_fallback = mem.read_byte(addr.OPTION_SAVE_REPAIR_FALLBACK) == 1
+        snap.flags.option_no_chara_doors = mem.read_byte(addr.OPTION_SAVE_NO_CHARA_DOORS) == 1
+        snap.flags.option_start_map = mem.read_byte(addr.OPTION_SAVE_START_MAP) == 1
+        snap.flags.option_start_mc = mem.read_byte(addr.OPTION_SAVE_START_MC) == 1
 
         # Player info
         char_id = mem.read_byte(addr.CURRENT_CHARACTER)

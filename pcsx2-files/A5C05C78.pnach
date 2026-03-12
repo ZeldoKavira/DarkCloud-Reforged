@@ -293,7 +293,23 @@ patch=1,EE,2016A094,extended,3C024160 //change 1st person cam
 
 patch=1,EE,201714A8,extended,3C024110 //start town bgm earlier
 
-patch=1,EE,20240364,extended,3C024000 //more consistentfishing
+
+
+//Fishing radius: Python writes boost index (0-6) to 0x21F10050
+patch=1,EE,E1010000,extended,01F10050 //idx 0: radius 2.0 (default)
+patch=1,EE,20240364,extended,3C024000
+patch=1,EE,E1010001,extended,01F10050 //idx 1: radius 3.0
+patch=1,EE,20240364,extended,3C024040
+patch=1,EE,E1010002,extended,01F10050 //idx 2: radius 4.0
+patch=1,EE,20240364,extended,3C024080
+patch=1,EE,E1010003,extended,01F10050 //idx 3: radius 5.0
+patch=1,EE,20240364,extended,3C0240A0
+patch=1,EE,E1010004,extended,01F10050 //idx 4: radius 6.0
+patch=1,EE,20240364,extended,3C0240C0
+patch=1,EE,E1010005,extended,01F10050 //idx 5: radius 8.0
+patch=1,EE,20240364,extended,3C024100
+patch=1,EE,E1010006,extended,01F10050 //idx 6: radius 10.0
+patch=1,EE,20240364,extended,3C024140
 
 patch=1,EE,21F10020,extended,00000001 //pnach active flag
 

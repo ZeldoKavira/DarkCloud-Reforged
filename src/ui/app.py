@@ -381,6 +381,9 @@ class App:
         self._sync_check("Disable Dungeon Limited Zones", snap.flags.option_no_limit_zones)
         self._sync_check("Disable Bad Magic Circles", snap.flags.option_good_circles)
         self._sync_check("Repair Powder is Automatic", snap.flags.option_repair_fallback)
+        self._sync_check("Disable Character Doors", snap.flags.option_no_chara_doors)
+        self._sync_check("Start with Map", snap.flags.option_start_map)
+        self._sync_check("Start with Magical Crystal", snap.flags.option_start_mc)
 
     def _set(self, fields, key, text, color=FG):
         if key in fields:

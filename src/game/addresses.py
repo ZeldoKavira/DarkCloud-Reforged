@@ -36,6 +36,7 @@ OPTION_BATTLE_MUSIC = 0x21F1002C
 OPTION_WIDESCREEN = 0x21F10030
 RUN_MODE_FLAG = 0x21F10038          # PNACH reads this to set BtBySpeedFlag
 TOWN_MSG_FLAG = 0x21F10040          # PNACH code cave reads this to call MakeMesWin
+FISH_RADIUS_FLAG = 0x21F10050       # Python writes desired lui instruction, PNACH copies to 0x20240364
 OPTION_GRAPHICS = 0x21F10034
 XIAO_FLAG = 0x21F1000C
 

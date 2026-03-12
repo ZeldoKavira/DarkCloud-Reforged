@@ -110,6 +110,7 @@ _FISH_AI_COUNT = 6     # max fish AI objects
 # PNACH writes 0x3C024000 (2.0f) every frame; we overwrite each tick
 _BAIT_RADIUS_ADDR = 0x20240364
 _LUI_V0 = 0x3C020000
+_FISH_RADIUS_FLAG = 0x21F10050
 # Progressive radius steps: 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0
 _RADIUS_STEPS = [0x4000, 0x4040, 0x4080, 0x40A0, 0x40C0, 0x4100, 0x4140]
 _BOOST_INTERVAL = 2.0
@@ -120,26 +121,28 @@ def progressive_attract(mem, area, last_boost_time, boost_idx):
     Returns (updated_time, updated_idx)."""
     cfg = _AREA_CONFIG.get(area)
     if not cfg:
+        mem.write_byte(_FISH_RADIUS_FLAG, 0)
         return last_boost_time, boost_idx
 
     base = cfg['fish_base']
     for i in range(cfg['count']):
         state = _read_state(mem, base + i * FISH_STRIDE + _AI_STATE)
         if state in (6, 7, 8):
+            mem.write_byte(_FISH_RADIUS_FLAG, 0)
             return None, 0
+
+    # Write current boost index — PNACH handles the actual radius
+    mem.write_byte(_FISH_RADIUS_FLAG, boost_idx)
 
     now = time.time()
     if last_boost_time is None:
         return now, boost_idx
 
     if now - last_boost_time < _BOOST_INTERVAL:
-        # Still write current step every tick to beat the PNACH
-        if boost_idx > 0:
-            mem.write_int(_BAIT_RADIUS_ADDR, _LUI_V0 | _RADIUS_STEPS[boost_idx])
         return last_boost_time, boost_idx
 
     new_idx = min(boost_idx + 1, len(_RADIUS_STEPS) - 1)
-    mem.write_int(_BAIT_RADIUS_ADDR, _LUI_V0 | _RADIUS_STEPS[new_idx])
+    mem.write_byte(_FISH_RADIUS_FLAG, new_idx)
     return now, new_idx
 
 
